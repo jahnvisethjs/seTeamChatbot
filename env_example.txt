@@ -1,0 +1,8 @@
+# ASU AI Platform Configuration
+# Get your API token from: https://platform.aiml.asu.edu
+ASU_AI_API_TOKEN=your_asu_ai_api_token_here
+
+# Optional: Customize model settings
+# ASU_AI_MODEL=gpt-5
+# TEMPERATURE=0.7
+# MAX_TOKENS=1000 

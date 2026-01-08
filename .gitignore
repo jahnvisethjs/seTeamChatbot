@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables - CRITICAL: Contains API tokens!
+.env
+.env.local
+.env.*.local
+
+# Streamlit
+.streamlit/
+
+# Test files and outputs - DO NOT PUSH
+test_*.py
+*_test.py
+*test*.py
+debug_*.py
+*_debug.py
+simple_test_api.py
+test_asu_api.py
+test_integration.py
+test_full_functionality.py
+debug_embeddings.py
+*_test_results.txt
+*_results.txt
+api_test*.txt
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ChromaDB
+chroma_db/
+.chroma/
+
+# FAISS index files
+*.faiss
+*.pkl
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# HuggingFace cache
+.cache/
+models/
+
+# Antigravity artifacts (optional - uncomment if you don't want to track)
+# .gemini/
