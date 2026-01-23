@@ -84,6 +84,7 @@ st.markdown("""
         border: 1px solid #e2e8f0;
         border-left: 4px solid #667eea;
         margin-right: 20%;
+        color: #1e293b;
     }
     
     .assistant-message strong {
@@ -230,8 +231,8 @@ if 'current_mode' not in st.session_state:
 
 def main():
     # Header
-    st.markdown('<h1 class="main-header">🤖 SE Team Mega Chatbot</h1>', unsafe_allow_html=True)
-    st.markdown(f'<p class="subtitle">{APP_DESCRIPTION} • Powered by ASU AI Platform GPT-5</p>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🤖 SE Team Chatbot</h1>', unsafe_allow_html=True)
+    st.markdown(f'<p class="subtitle">{APP_DESCRIPTION} • Powered by ASU AI Platform </p>', unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
@@ -256,6 +257,8 @@ def main():
         
         if selected_mode != st.session_state.current_mode:
             st.session_state.current_mode = selected_mode
+            # Clear chat history when switching modes
+            st.session_state.chat_history = []
             response = st.session_state.chatbot.switch_mode(selected_mode)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
@@ -284,7 +287,7 @@ def main():
         st.markdown("### 🔑 API Status")
         if ASU_AI_API_TOKEN:
             st.markdown('<div class="status-badge status-success">✅ Connected to ASU AI</div>', unsafe_allow_html=True)
-            st.caption("GPT-5 Model Active")
+            st.caption("GPT-4o Model Active")
         else:
             st.markdown('<div class="status-badge status-error">❌ API Not Configured</div>', unsafe_allow_html=True)
             st.caption("Add token to .env file")
@@ -297,7 +300,7 @@ def main():
         features = [
             {"icon": "🔧", "title": "Dev Setup", "desc": "Guided environment setup"},
             {"icon": "📚", "title": "RAG Support", "desc": "Smart document retrieval"},
-            {"icon": "🤖", "title": "GPT-5", "desc": "Latest AI model"},
+            {"icon": "🤖", "title": "GPT-4o", "desc": "Latest AI model"},
         ]
         
         for feature in features:
@@ -356,14 +359,26 @@ def main():
     # Input area at the bottom
     st.markdown("---")
     
+    # Check if we should clear the input
+    if 'clear_input' not in st.session_state:
+        st.session_state.clear_input = False
+    
+    # Get the current message value (empty if we just sent a message)
+    message_value = "" if st.session_state.clear_input else st.session_state.get('last_message', "")
+    
+    # Reset clear flag
+    if st.session_state.clear_input:
+        st.session_state.clear_input = False
+    
     col1, col2 = st.columns([4, 1])
     
     with col1:
         user_input = st.text_area(
             "💭 Type your message here...",
             height=100,
-            key="user_input",
-            placeholder="Ask me about dev setup, team processes, or anything else!",
+            key="message_input",
+            value=message_value,
+            placeholder="Ask me about dev setup, team processes, or anything else! (Press Ctrl+Enter to send)",
             label_visibility="collapsed"
         )
     
@@ -373,6 +388,7 @@ def main():
             if user_input and user_input.strip():
                 with st.spinner('🤔 Thinking...'):
                     process_user_input(user_input.strip())
+                st.session_state.clear_input = True
                 st.rerun()
         
         if st.button("💡 Help", use_container_width=True):

@@ -60,7 +60,7 @@ class MegaChatbot:
             return self.handle_dev_setup_message(message)
         
         # Use RAG for general questions
-        if self.rag_engine.qa_chain:
+        if self.rag_engine.rag_chain:
             try:
                 response = self.rag_engine.query(message)
                 return response
