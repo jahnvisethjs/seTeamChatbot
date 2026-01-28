@@ -248,6 +248,73 @@ If the issue persists, please provide more details about the error."""
         with open(FAQ_FILE, 'w', encoding='utf-8') as f:
             f.write(default_faq)
     
+    def detect_user_intent(self, message: str, conversation_history: List[Dict[str, str]]) -> str:
+        """
+        Use AI to detect user intent from natural language.
+        Returns: 'proceed', 'error', 'help', or 'clarify'
+        """
+        # Quick keyword-based detection first (faster)
+        message_lower = message.lower()
+        
+        # Strong completion signals
+        completion_phrases = [
+            "i did it", "i completed", "i finished", "i'm done",
+            "that worked", "it worked", "successfully", "all good",
+            "installed", "configured", "set up", "ready to go"
+        ]
+        
+        if any(phrase in message_lower for phrase in completion_phrases):
+            return "proceed"
+        
+        # Error signals
+        if detect_error_in_response(message):
+            return "error"
+        
+        # If message is very short and conversational, analyze with context
+        if len(message.split()) <= 10:
+            try:
+                # Use RAG engine's LLM to analyze intent
+                current_step = self.get_current_step()
+                step_context = f"Step {current_step['number']}: {current_step['title']}" if current_step else "beginning"
+                
+                # Build recent conversation context
+                recent_context = ""
+                if conversation_history:
+                    recent_messages = conversation_history[-4:]  # Last 2 exchanges
+                    recent_context = "\n".join([
+                        f"{msg['role']}: {msg['content'][:100]}"
+                        for msg in recent_messages
+                    ])
+                
+                analysis_prompt = f"""Analyze this user message in the context of a development setup guide.
+
+Current Step: {step_context}
+
+Recent Conversation:
+{recent_context}
+
+User Message: "{message}"
+
+Determine the user's intent. Respond with ONLY one word:
+- "proceed" if they want to move to the next step (e.g., completed current step, ready to continue)
+- "error" if they're reporting a problem or error
+- "help" if they're asking for assistance
+- "clarify" if unclear or just conversational
+
+Intent:"""
+                
+                response = self.rag_engine.query(analysis_prompt)
+                intent = response.strip().lower()
+                
+                if intent in ["proceed", "error", "help", "clarify"]:
+                    return intent
+                    
+            except Exception:
+                # Fallback to keyword detection
+                pass
+        
+        return "clarify"
+    
     def reset_progress(self) -> None:
         """Reset the progress and start from the beginning."""
         self.current_step = 0

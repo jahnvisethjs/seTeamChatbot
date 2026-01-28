@@ -80,15 +80,26 @@ What would you like help with today?"""
         """Handle dev setup specific messages."""
         message_lower = message.lower()
         
-        # Check for navigation commands
-        if "next" in message_lower or "continue" in message_lower:
+        # Expanded list of progression keywords
+        progression_keywords = [
+            "next", "continue", "move ahead", "proceed", "go ahead",
+            "done", "completed", "finished", "complete", "all set",
+            "ready", "got it", "working", "success", "successfully",
+            "what's next", "what next", "move on", "skip", "let's go"
+        ]
+        
+        # Check for navigation commands - NEXT
+        if any(keyword in message_lower for keyword in progression_keywords):
+            # Acknowledge completion and move forward
             next_step = self.dev_setup_assistant.next_step()
             if next_step:
-                return self.dev_setup_assistant.format_current_step()
+                return f"""✅ Great! Moving to the next step.
+
+{self.dev_setup_assistant.format_current_step()}"""
             else:
                 return "🎉 Congratulations! You've completed the dev setup guide. Your development environment should now be ready!"
         
-        elif "previous" in message_lower or "back" in message_lower:
+        elif "previous" in message_lower or "back" in message_lower or "go back" in message_lower:
             prev_step = self.dev_setup_assistant.previous_step()
             if prev_step:
                 return self.dev_setup_assistant.format_current_step()
@@ -102,7 +113,7 @@ What would you like help with today?"""
 {self.dev_setup_assistant.format_current_step()}
 
 **Navigation:**
-- Say "next" or "continue" to move to the next step
+- Say "next", "done", or "move ahead" to continue
 - Say "previous" or "back" to go back
 - Say "error" followed by your error message for help
 - Say "status" to see your progress"""
@@ -125,7 +136,7 @@ What would you like help with today?"""
             return """🔧 **Dev Setup Assistant Help:**
 
 **Navigation Commands:**
-- "next" or "continue" - Move to next step
+- "next", "done", "completed", "move ahead" - Move to next step
 - "previous" or "back" - Go to previous step  
 - "start" or "reset" - Start from beginning
 - "status" - Show current progress
@@ -137,18 +148,28 @@ What would you like help with today?"""
 {self.dev_setup_assistant.format_current_step()}"""
         
         else:
-            # Check if message contains error indicators
-            if detect_error_in_response(message):
-                return self.dev_setup_assistant.handle_error_response(message)
+            # Use conversational intelligence to detect intent
+            intent = self.dev_setup_assistant.detect_user_intent(message, self.conversation_history)
             
-            # Default response with current step
-            return f"""I'm here to help with your dev setup! 
+            if intent == "proceed":
+                next_step = self.dev_setup_assistant.next_step()
+                if next_step:
+                    return f"""✅ Great! Moving to the next step.
+
+{self.dev_setup_assistant.format_current_step()}"""
+                else:
+                    return "🎉 Congratulations! You've completed the dev setup guide!"
+            elif intent == "error":
+                return self.dev_setup_assistant.handle_error_response(message)
+            else:
+                # Default helpful response
+                return f"""I'm here to help with your dev setup! 
 
 {self.dev_setup_assistant.format_current_step()}
 
-**Commands:**
-- Say "next" to continue
-- Say "error [description]" for help with errors
+**Quick Commands:**
+- Say "done" or "next" when you complete a step
+- Say "error [description]" if you encounter issues
 - Say "help" for more options"""
     
     def handle_onboarding_message(self, message: str) -> str:

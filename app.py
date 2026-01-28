@@ -359,37 +359,35 @@ def main():
     # Input area at the bottom
     st.markdown("---")
     
-    # Check if we should clear the input
-    if 'clear_input' not in st.session_state:
-        st.session_state.clear_input = False
+    # Initialize message counter for clearing input
+    if 'message_counter' not in st.session_state:
+        st.session_state.message_counter = 0
     
-    # Get the current message value (empty if we just sent a message)
-    message_value = "" if st.session_state.clear_input else st.session_state.get('last_message', "")
-    
-    # Reset clear flag
-    if st.session_state.clear_input:
-        st.session_state.clear_input = False
+    # Callback function for when user submits input
+    def on_input_submit():
+        """Handle input submission via Enter key or button."""
+        user_input = st.session_state.get(f'message_input_{st.session_state.message_counter}', '').strip()
+        if user_input:
+            with st.spinner('🤔 Thinking...'):
+                process_user_input(user_input)
+            # Increment counter to create a new widget with empty value
+            st.session_state.message_counter += 1
     
     col1, col2 = st.columns([4, 1])
     
     with col1:
-        user_input = st.text_area(
+        # Use text_input with counter-based key for proper clearing
+        user_input = st.text_input(
             "💭 Type your message here...",
-            height=100,
-            key="message_input",
-            value=message_value,
-            placeholder="Ask me about dev setup, team processes, or anything else! (Press Ctrl+Enter to send)",
-            label_visibility="collapsed"
+            key=f"message_input_{st.session_state.message_counter}",
+            placeholder="Ask me about dev setup, team processes, or anything else! (Press Enter to send)",
+            label_visibility="collapsed",
+            on_change=on_input_submit
         )
     
     with col2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
         if st.button("🚀 Send", type="primary", use_container_width=True):
-            if user_input and user_input.strip():
-                with st.spinner('🤔 Thinking...'):
-                    process_user_input(user_input.strip())
-                st.session_state.clear_input = True
-                st.rerun()
+            on_input_submit()
         
         if st.button("💡 Help", use_container_width=True):
             show_help()
