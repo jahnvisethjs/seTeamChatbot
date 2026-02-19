@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any, Optional
 from chatbot.rag_engine import RAGEngine
 from chatbot.dev_setup import DevSetupAssistant
+from chatbot.onboarding_assistant import OnboardingAssistant
 from chatbot.utils import detect_error_in_response
 from config.settings import KNOWLEDGE_BASE_DIR, ASU_AI_API_TOKEN
 
@@ -9,6 +10,7 @@ class MegaChatbot:
     def __init__(self):
         self.rag_engine = RAGEngine()
         self.dev_setup_assistant = DevSetupAssistant()
+        self.onboarding_assistant = OnboardingAssistant(self.rag_engine)
         self.conversation_history = []
         self.current_mode = "general"  # "general", "dev_setup", "onboarding"
         self.initialize_knowledge_base()
@@ -19,22 +21,29 @@ class MegaChatbot:
         os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True)
         
         # Load documents from knowledge base
+        # Load documents from knowledge base
         self.rag_engine.load_documents(KNOWLEDGE_BASE_DIR)
+        
+        # Load onboarding agendas
+        onboarding_agendas_dir = os.path.join("data", "onboarding_agendas")
+        if os.path.exists(onboarding_agendas_dir):
+            self.rag_engine.load_documents(onboarding_agendas_dir)
+            
         self.rag_engine.create_vectorstore()
     
-    def process_message(self, message: str, mode: str = None) -> str:
+    def process_message(self, message: str, mode: str = None, image_bytes: Optional[bytes] = None) -> str:
         """Process a user message and return a response."""
         if mode:
             self.current_mode = mode
         
-        # Add message to history
+        # Add message to history (content is text for history)
         self.conversation_history.append({"role": "user", "content": message})
         
         # Process based on current mode
         if self.current_mode == "dev_setup":
             response = self.handle_dev_setup_message(message)
         elif self.current_mode == "onboarding":
-            response = self.handle_onboarding_message(message)
+            response = self.handle_onboarding_message(message, image_bytes)
         else:
             response = self.handle_general_message(message)
         
@@ -133,7 +142,7 @@ What would you like help with today?"""
             return self.dev_setup_assistant.handle_error_response(error_message)
         
         elif "help" in message_lower:
-            return """🔧 **Dev Setup Assistant Help:**
+            return f"""🔧 **Dev Setup Assistant Help:**
 
 **Navigation Commands:**
 - "next", "done", "completed", "move ahead" - Move to next step
@@ -172,17 +181,9 @@ What would you like help with today?"""
 - Say "error [description]" if you encounter issues
 - Say "help" for more options"""
     
-    def handle_onboarding_message(self, message: str) -> str:
+    def handle_onboarding_message(self, message: str, image_bytes: Optional[bytes] = None) -> str:
         """Handle onboarding specific messages."""
-        return """📅 **Onboarding Scheduler** (Coming Soon!)
-
-This feature will help you:
-- Create onboarding schedules based on class availability
-- Coordinate meetings and group sessions
-- Generate structured agendas
-- Track onboarding progress
-
-For now, I can help with dev setup and general team support. Would you like to start the dev setup guide?"""
+        return self.onboarding_assistant.process_message(message, image_bytes)
     
     def get_available_modes(self) -> List[str]:
         """Get list of available modes."""

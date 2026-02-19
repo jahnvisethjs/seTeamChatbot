@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+from typing import Optional
 from chatbot.core import MegaChatbot
 from config.settings import APP_TITLE, APP_DESCRIPTION, ASU_AI_API_TOKEN
 
@@ -90,6 +91,46 @@ st.markdown("""
     .assistant-message strong {
         color: #667eea;
         font-weight: 600;
+    }
+    
+    .assistant-message h3, .assistant-message h4 {
+        color: #334155;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .assistant-message table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0.75rem 0;
+        font-size: 0.9rem;
+    }
+    
+    .assistant-message th, .assistant-message td {
+        border: 1px solid #cbd5e1;
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+    }
+    
+    .assistant-message th {
+        background-color: #e2e8f0;
+        font-weight: 600;
+        color: #334155;
+    }
+    
+    .assistant-message tr:nth-child(even) {
+        background-color: #f1f5f9;
+    }
+    
+    .assistant-message hr {
+        border: none;
+        border-top: 1px solid #e2e8f0;
+        margin: 1rem 0;
+    }
+    
+    .assistant-message ul, .assistant-message ol {
+        padding-left: 1.5rem;
+        margin: 0.5rem 0;
     }
     
     /* Sidebar styling */
@@ -262,6 +303,19 @@ def main():
             response = st.session_state.chatbot.switch_mode(selected_mode)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
+            
+        # Image Upload for Onboarding Mode
+        uploaded_image = None
+        if st.session_state.current_mode == "onboarding":
+            st.markdown("---")
+            st.markdown("### 📸 Class Timetable")
+            uploaded_image = st.file_uploader(
+                "Upload image of your schedule",
+                type=["jpg", "jpeg", "png"],
+                help="Upload your class timetable and I'll create a work schedule for you!"
+            )
+            if uploaded_image:
+                st.image(uploaded_image, caption="Uploaded Timetable", use_container_width=True)
         
         st.markdown("---")
         
@@ -273,6 +327,8 @@ def main():
             if st.button("🔄 Reset", use_container_width=True):
                 st.session_state.chat_history = []
                 st.session_state.chatbot = MegaChatbot()
+                if 'uploaded_image' in st.session_state:
+                    del st.session_state.uploaded_image
                 st.rerun()
         
         with col2:
@@ -300,7 +356,7 @@ def main():
         features = [
             {"icon": "🔧", "title": "Dev Setup", "desc": "Guided environment setup"},
             {"icon": "📚", "title": "RAG Support", "desc": "Smart document retrieval"},
-            {"icon": "🤖", "title": "GPT-4o", "desc": "Latest AI model"},
+            {"icon": "🖼️", "title": "Vision", "desc": "Process schedule images"},
         ]
         
         for feature in features:
@@ -347,12 +403,16 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # Convert markdown to avoid rendering issues
-                content = message["content"].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+                # Convert markdown to HTML for proper rendering inside styled container
+                import markdown as md
+                html_content = md.markdown(
+                    message["content"],
+                    extensions=['tables', 'fenced_code', 'nl2br']
+                )
                 st.markdown(f"""
                 <div class="chat-message assistant-message">
                     <strong>Assistant:</strong><br>
-                    {content}
+                    {html_content}
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -367,9 +427,13 @@ def main():
     def on_input_submit():
         """Handle input submission via Enter key or button."""
         user_input = st.session_state.get(f'message_input_{st.session_state.message_counter}', '').strip()
-        if user_input:
+        img_bytes = None
+        if uploaded_image:
+            img_bytes = uploaded_image.getvalue()
+            
+        if user_input or img_bytes:
             with st.spinner('🤔 Thinking...'):
-                process_user_input(user_input)
+                process_user_input(user_input, img_bytes)
             # Increment counter to create a new widget with empty value
             st.session_state.message_counter += 1
     
@@ -380,7 +444,7 @@ def main():
         user_input = st.text_input(
             "💭 Type your message here...",
             key=f"message_input_{st.session_state.message_counter}",
-            placeholder="Ask me about dev setup, team processes, or anything else! (Press Enter to send)",
+            placeholder="Ask me to create a work schedule! You can also upload a timetable image in the sidebar." if st.session_state.current_mode == "onboarding" else "Ask me about dev setup, team processes, or anything else! (Press Enter to send)",
             label_visibility="collapsed",
             on_change=on_input_submit
         )
@@ -404,10 +468,18 @@ def main():
         if current_step:
             st.caption(f"Step {current_step['number']}: {current_step['title']}")
 
-def process_user_input(user_input: str):
+def process_user_input(user_input: str, image_bytes: Optional[bytes] = None):
     """Process user input and update chat history."""
-    response = st.session_state.chatbot.process_message(user_input)
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    response = st.session_state.chatbot.process_message(user_input, image_bytes=image_bytes)
+    
+    # If image was uploaded, add a note to the user message
+    display_input = user_input
+    if image_bytes and not user_input:
+        display_input = "[Sent an image of class timetable]"
+    elif image_bytes:
+        display_input = f"{user_input} [with attached image]"
+        
+    st.session_state.chat_history.append({"role": "user", "content": display_input})
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
 def show_help():
@@ -418,24 +490,22 @@ def show_help():
 **Available Modes:**
 1. **General Chat** - Ask questions about team processes, tools, and documentation
 2. **Dev Setup Assistant** - Step-by-step guidance for development environment setup
-3. **Onboarding Scheduler** - (Coming Soon) Help with onboarding schedules
+3. **Onboarding** - Create agendas and generate work schedules around your classes
+
+**Onboarding Features:**
+- **Agendas**: Provide name/role for a personalized agenda
+- **Work Schedules**: Upload an image of your class timetable or paste it as text
+- **Constraints**: 20 hours/week, Tue-Fri, 9am-5pm, single shift per day, 15-min commute buffer
 
 **How to Use:**
-- Type your message in the text area
-- Click Send or press Enter
 - Use the sidebar to switch modes
+- In **Onboarding Mode**, use the file uploader for images
+- Type your message and press Enter or click Send
 - In dev setup mode, use commands like "next", "previous", "status"
-
-**Features:**
-- 🤖 Powered by GPT-5 via ASU AI Platform
-- 📚 RAG-based document retrieval
-- 🔧 Step-by-step dev setup guidance
-- 📊 Progress tracking
 
 **Need Help?**
 - Type "help" in any mode for specific commands
 - Use sidebar controls for quick actions
-- Check the current status panel for progress info
     """
     
     st.session_state.chat_history.append({"role": "assistant", "content": help_text})
