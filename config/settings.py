@@ -11,6 +11,7 @@ ASU_AI_MODEL = "gpt-4o"
 ASU_AI_EMBEDDINGS_MODEL = "text-embedding-ada-002"
 ASU_AI_EMBEDDINGS_URL = "https://api-main.aiml.asu.edu/embeddings"
 ASU_AI_QUERY_URL = "https://api-main.aiml.asu.edu/query"
+ASU_AI_QUERY_V2_URL = "https://api-main.aiml.asu.edu/queryV2"
 
 # RAG Configuration
 CHUNK_SIZE = 1000

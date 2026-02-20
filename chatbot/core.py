@@ -45,7 +45,7 @@ class MegaChatbot:
         elif self.current_mode == "onboarding":
             response = self.handle_onboarding_message(message, image_bytes)
         else:
-            response = self.handle_general_message(message)
+            response = self.handle_general_message(message, image_bytes)
         
         # Add response to history
         self.conversation_history.append({"role": "assistant", "content": response})
@@ -56,8 +56,12 @@ class MegaChatbot:
         
         return response
     
-    def handle_general_message(self, message: str) -> str:
-        """Handle general chat messages."""
+    def handle_general_message(self, message: str, image_bytes: Optional[bytes] = None) -> str:
+        """Handle general chat messages, optionally with an image attachment."""
+        # If an image is attached, use vision to analyze it
+        if image_bytes:
+            return self._handle_image_query(message, image_bytes)
+        
         # Check if message is about dev setup
         dev_setup_keywords = [
             "dev setup", "development setup", "environment setup",
@@ -81,9 +85,53 @@ class MegaChatbot:
 **🔧 Dev Setup**: Step-by-step guidance for setting up your development environment
 **📅 Onboarding**: Help with onboarding schedules and team orientation  
 **📚 Documentation**: Access to team documents, guides, and resources
+**🖼️ Image Analysis**: Upload an image and ask me about it
 **❓ General Support**: Answer questions about team processes and tools
 
 What would you like help with today?"""
+    
+    def _handle_image_query(self, message: str, image_bytes: bytes) -> str:
+        """Analyze an uploaded image and respond to the user's question about it."""
+        if not self.rag_engine.llm:
+            return "I need access to the AI model to analyze images. Please check your API token."
+        
+        import base64
+        from io import BytesIO
+        try:
+            from PIL import Image
+        except ImportError:
+            Image = None
+        
+        # Process image — convert to PNG for maximum compatibility
+        if Image:
+            try:
+                img = Image.open(BytesIO(image_bytes))
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                max_dim = 1024
+                if max(img.width, img.height) > max_dim:
+                    scale = max_dim / max(img.width, img.height)
+                    new_size = (int(img.width * scale), int(img.height * scale))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                buffer = BytesIO()
+                img.save(buffer, format="PNG")
+                image_bytes = buffer.getvalue()
+            except Exception as img_err:
+                print(f"Image processing warning: {img_err}")
+        
+        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+        
+        # Build text prompt
+        if message.strip():
+            text_prompt = f'The user uploaded an image and asked: "{message}"\n\nPlease analyze the image and respond to their question. Be helpful, detailed, and specific about what you see in the image.'
+        else:
+            text_prompt = "The user uploaded an image without a specific question.\n\nPlease describe what you see in the image in detail. Include relevant details like:\n- What the image shows (objects, text, diagrams, charts, etc.)\n- Any key information visible\n- Any relevant context or interpretation"
+        
+        try:
+            response = self.rag_engine.llm.invoke_vision(text_prompt, image_base64)
+            return response
+        except Exception as e:
+            return f"I encountered an error analyzing the image: {str(e)}\n\nPlease try uploading a smaller or clearer image, or describe what you'd like to know about it."
     
     def handle_dev_setup_message(self, message: str) -> str:
         """Handle dev setup specific messages."""

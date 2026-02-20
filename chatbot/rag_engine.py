@@ -14,7 +14,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from config.settings import (
     CHUNK_SIZE, CHUNK_OVERLAP, TOP_K_RESULTS,
     ASU_AI_API_TOKEN, ASU_AI_MODEL, ASU_AI_EMBEDDINGS_MODEL,
-    ASU_AI_BASE_URL
+    ASU_AI_BASE_URL, ASU_AI_QUERY_V2_URL
 )
 from chatbot.utils import load_markdown_file, ensure_directory_exists
 
@@ -27,7 +27,66 @@ class ASUAILM(Runnable):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.api_url = f"{base_url}/query"
+        self.api_url = ASU_AI_QUERY_V2_URL
+    
+    def invoke_vision(self, text_query: str, image_base64: str, mime_type: str = "image/png") -> str:
+        """Invoke the ASU AI vision endpoint with a text query and base64-encoded image.
+        
+        Args:
+            text_query: The text prompt/question about the image.
+            image_base64: Raw base64-encoded image data (no data URI prefix).
+            mime_type: MIME type of the image (default: "image/png").
+        
+        Returns:
+            The API response text.
+        """
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # The ASU AI API requires the data URI prefix on the base64 data
+        if not image_base64.startswith("data:"):
+            image_data_uri = f"data:{mime_type};base64,{image_base64}"
+        else:
+            image_data_uri = image_base64
+        
+        payload = {
+            "action": "query",
+            "endpoint": "vision",
+            "query": text_query,
+            "image_file": image_data_uri,
+            "model_provider": "openai",
+            "model_name": "gpt4o"
+        }
+        
+        try:
+            print(f"DEBUG: Vision request - query: '{text_query[:100]}...', image_file length: {len(image_data_uri)} chars")
+
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=90)
+            
+            if response.status_code != 200:
+                print(f"DEBUG: Vision API Error {response.status_code}: {response.text[:500]}")
+                return f"Vision API error ({response.status_code}): {response.text[:300]}"
+            
+            result = response.json()
+            
+            if "response" in result:
+                return result["response"]
+            elif "choices" in result and len(result["choices"]) > 0:
+                return result["choices"][0]["message"]["content"]
+            elif "message" in result:
+                if isinstance(result["message"], dict):
+                    return result["message"].get("content", str(result["message"]))
+                return result["message"]
+            else:
+                return str(result)
+                
+        except requests.exceptions.Timeout:
+            return "The vision request timed out. Please try again with a smaller image."
+        except Exception as e:
+            print(f"DEBUG: Vision exception: {str(e)}")
+            return f"Error calling vision API: {str(e)}"
     
     def invoke(self, input_data: Any, config: Dict = None) -> str:
         """Invoke the LLM with the given input."""
@@ -115,17 +174,33 @@ class ASUAILM(Runnable):
         
         # For multimodal content, use OpenAI-compatible messages format
         # For text-only, use the simple query format
+        # Build payload using the user-provided structure
         if is_multimodal:
+            # Extract text and base64 image from the list structure
+            text_query = ""
+            image_base64 = ""
+            for item in query:
+                if item.get("type") == "text":
+                    text_query = item.get("text", "")
+                elif item.get("type") == "image_url":
+                    image_url = item.get("image_url", {}).get("url", "")
+                    if "base64," in image_url:
+                        # Extract just the data part from the data URI
+                        image_base64 = image_url.split("base64,")[1]
+                    else:
+                        image_base64 = image_url
+            
             payload = {
-                "messages": [
-                    {"role": "user", "content": query}
-                ],
+                "action": "query",
+                "endpoint": "vision",
+                "query": text_query,
+                "image_file": image_base64,
                 "model_provider": "openai",
-                "model_name": self.model,
-                "model_params": model_params
+                "model_name": "gpt4o" # As specified in the example
             }
         else:
             payload = {
+                "action": "query",
                 "query": query,
                 "model_provider": "openai",
                 "model_name": self.model,
@@ -134,32 +209,22 @@ class ASUAILM(Runnable):
         
         try:
             # Debugging: Log payload structure (truncate large strings for readability)
-            debug_payload = {k: v for k, v in payload.items() if k != "messages"}
-            if "messages" in payload:
-                debug_payload["messages"] = "[multimodal message with image]"
+            debug_payload = {k: v for k, v in payload.items()}
+            
+            # Truncate content for logging
+            if is_multimodal:
+                debug_payload["query"] = "[multimodal content with image]"
             elif isinstance(payload.get("query"), str) and len(payload["query"]) > 200:
                 debug_payload["query"] = payload["query"][:200] + "...[truncated]"
             
             print(f"DEBUG: Sending to ASU AI ({'multimodal/messages' if is_multimodal else 'text/query'} format): {str(debug_payload)[:500]}...")
 
-            # Increase timeout for potentially large multimodal requests
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=90)
+            # Use a generous timeout — agenda generation can take several minutes
+            timeout = 300  # 5 minutes
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=timeout)
             
             if response.status_code != 200:
                 print(f"DEBUG: API Error {response.status_code}: {response.text[:500]}")
-            
-            # If messages format fails for multimodal, try query format as fallback
-            if response.status_code == 500 and is_multimodal:
-                print("DEBUG: Messages format failed for multimodal, trying query format as fallback...")
-                fallback_payload = {
-                    "query": query,
-                    "model_provider": "openai",
-                    "model_name": self.model,
-                    "model_params": model_params
-                }
-                response = requests.post(self.api_url, headers=headers, json=fallback_payload, timeout=90)
-                if response.status_code != 200:
-                    print(f"DEBUG: Fallback also failed {response.status_code}: {response.text[:500]}")
 
             if response.status_code == 500:
                 # Provide a more helpful message for 500 errors in multimodal contexts

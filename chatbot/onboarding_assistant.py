@@ -12,6 +12,8 @@ class OnboardingAssistant:
         self.WORK_START_HOUR = 9
         self.WORK_END_HOUR = 17
         self.TARGET_WEEKLY_HOURS = 20
+        # Track the last generated work schedule for agenda generation
+        self.last_work_schedule = None
         
     def process_message(self, message: str, image_bytes: Optional[bytes] = None) -> str:
         """Process a message in onboarding mode."""
@@ -22,21 +24,27 @@ class OnboardingAssistant:
         if any(w in message_lower for w in ["agenda", "onboarding plan", "welcome packet"]):
             return self.generate_onboarding_agenda(message, image_bytes)
 
-        # If an image is uploaded without agenda keywords, treat as schedule parsing
+        # If an image is uploaded without agenda keywords, treat as class timetable → work schedule
         if image_bytes:
-            return self.generate_work_schedule(message, image_bytes)
+            result = self.generate_work_schedule(message, image_bytes)
+            return result
 
-        # Check for schedule/timetable related keywords
+        # Check for schedule/timetable related keywords → generate work schedule
         if any(w in message_lower for w in ["schedule", "timetable", "class", "calendar", "availability"]):
-            return self.generate_work_schedule(message, image_bytes)
+            result = self.generate_work_schedule(message, image_bytes)
+            return result
             
         # Check for other onboarding keywords
         if any(w in message_lower for w in ["onboarding", "new joiner", "welcome"]):
             return self.generate_onboarding_agenda(message)
             
         return """I can help you with two main onboarding tasks:
-1. **Create Onboarding Agendas**: Provide a name and role to generate a personalized agenda. You can also attach an image of the working schedule to fit the agenda around it.
-2. **Generate Work Schedule**: Paste your class timetable or upload an image of it, and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
+
+**Step 1 — Generate Work Schedule:**
+Upload an image of your class timetable (or paste it as text), and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
+
+**Step 2 — Generate Onboarding Agenda:**
+Once you have your work schedule, ask me to "generate an agenda" and I'll create a full 21-business-day onboarding plan fit to your working hours. You can also provide a work schedule directly (text or image) when requesting the agenda.
 
 What would you like to do?"""
 
@@ -49,19 +57,19 @@ What would you like to do?"""
         except ImportError:
             Image = None
 
-        # Resize image if PIL is available to prevent 500 errors from large payloads
+        # Process image — convert to PNG for maximum API compatibility
         if Image:
             try:
                 img = Image.open(BytesIO(image_bytes))
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
-                max_dim = 768
+                max_dim = 1024
                 if max(img.width, img.height) > max_dim:
                     scale = max_dim / max(img.width, img.height)
                     new_size = (int(img.width * scale), int(img.height * scale))
                     img = img.resize(new_size, Image.Resampling.LANCZOS)
                 buffer = BytesIO()
-                img.save(buffer, format="JPEG", quality=60, optimize=True)
+                img.save(buffer, format="PNG")
                 image_bytes = buffer.getvalue()
             except Exception as img_err:
                 print(f"Image processing warning: {img_err}")
@@ -83,17 +91,8 @@ Total Weekly Hours: [total]
 Also note any special details visible in the schedule (e.g., remote days, specific room numbers, etc.).
 If something is unclear, make your best interpretation and note it."""
 
-        content = [
-            {"type": "text", "text": extraction_prompt},
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{image_base64}"
-                }
-            }
-        ]
-        messages = [HumanMessage(content=content)]
-        return str(self.rag_engine.llm.invoke(messages))
+        return self.rag_engine.llm.invoke_vision(extraction_prompt, image_base64)
+
 
     def generate_onboarding_agenda(self, message: str, image_bytes: Optional[bytes] = None) -> str:
         """Generate a comprehensive 21-business-day onboarding agenda based on the user's request."""
@@ -110,6 +109,11 @@ If something is unclear, make your best interpretation and note it."""
             except Exception as e:
                 print(f"Warning: Could not extract schedule from image: {e}")
                 extracted_schedule = "(Could not extract schedule from image — please provide it as text.)"
+        
+        # If no image and no extracted schedule, check if we have a previously generated work schedule
+        if not extracted_schedule and self.last_work_schedule:
+            extracted_schedule = self.last_work_schedule
+            print(f"DEBUG: Using previously generated work schedule for agenda")
 
         # Load the agenda template for context
         template_context = ""
@@ -258,7 +262,14 @@ Every working day should include these recurring elements:
         try:
             user_content = f"Generate a complete 21-business-day onboarding agenda based on this request: {message}"
             if extracted_schedule:
-                user_content += f"\n\nThe work schedule extracted from the uploaded image is:\n{extracted_schedule}"
+                if image_bytes:
+                    source_label = "extracted from the uploaded image"
+                elif self.last_work_schedule and extracted_schedule == self.last_work_schedule:
+                    source_label = "generated from the previous class timetable analysis"
+                else:
+                    source_label = "provided"
+                user_content += f"\n\nThe work schedule ({source_label}) is:\n{extracted_schedule}"
+
             response = self.rag_engine.llm.invoke([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_content)
@@ -294,44 +305,29 @@ Every working day should include these recurring elements:
 
         try:
             if image_bytes:
-                # Resize image if PIL is available to prevent 500 errors from large payloads
+                # Process image — convert to PNG for maximum API compatibility
                 if Image:
                     try:
                         img = Image.open(BytesIO(image_bytes))
-                        # Convert to RGB if necessary (e.g., for RGBA PNGs)
                         if img.mode in ("RGBA", "P"):
                             img = img.convert("RGB")
-                        
-                        # Max resolution 768x768 for reliability (ASU AI API is payload-sensitive)
-                        max_dim = 768
+                        max_dim = 1024
                         if max(img.width, img.height) > max_dim:
                             scale = max_dim / max(img.width, img.height)
                             new_size = (int(img.width * scale), int(img.height * scale))
                             img = img.resize(new_size, Image.Resampling.LANCZOS)
-                        
-                        # Compress to JPEG with lower quality for smaller payload
                         buffer = BytesIO()
-                        img.save(buffer, format="JPEG", quality=60, optimize=True)
+                        img.save(buffer, format="PNG")
                         image_bytes = buffer.getvalue()
                     except Exception as img_err:
                         print(f"Image processing warning: {img_err}")
-                        # Continue with original bytes if processing fails
 
-                # If image is provided, we need to pass it to the LLM.
+                # Use invoke_vision for image-based schedule parsing
                 image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                content = [
-                    {"type": "text", "text": parsing_prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
-                        }
-                    }
-                ]
-                messages = [HumanMessage(content=content)]
-                json_response = self.rag_engine.llm.invoke(messages)
+                json_response = self.rag_engine.llm.invoke_vision(parsing_prompt, image_base64)
             else:
                 json_response = self.rag_engine.llm.invoke(parsing_prompt)
+
             
             if not json_response or not str(json_response).strip():
                 return "The AI returned an empty response. This might be due to a safety filter or an issue reading the provided input. Please try again or paste the text directly."
@@ -426,6 +422,20 @@ Every working day should include these recurring elements:
         response += "\n---\n#### 📚 Your Class Schedule (as parsed)\n\n"
         for slot in sorted(class_slots, key=lambda x: (["Monday","Tuesday","Wednesday","Thursday","Friday"].index(x['day']) if x['day'] in ["Monday","Tuesday","Wednesday","Thursday","Friday"] else 5, x['start_time'])):
             response += f"- **{slot['day']}**: {slot['start_time']} – {slot['end_time']}\n"
+        
+        # Save the work schedule for potential agenda generation
+        schedule_summary = "Weekly Work Schedule:\n"
+        for day in self.WORK_DAYS:
+            if day in work_slots:
+                start, end = work_slots[day]
+                hours = (datetime.datetime.strptime(end, "%H:%M") - datetime.datetime.strptime(start, "%H:%M")).seconds / 3600
+                schedule_summary += f"- {day}: {start} - {end} ({hours:.1f} hours) at Fulton 245\n"
+            else:
+                schedule_summary += f"- {day}: OFF\n"
+        schedule_summary += f"Total Weekly Hours: {total_hours:.1f}"
+        self.last_work_schedule = schedule_summary
+        
+        response += "\n---\n💡 **Next step:** Say **\"generate agenda\"** and I'll create a full 21-business-day onboarding plan based on this work schedule!\n"
         
         return response
 

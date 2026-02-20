@@ -269,6 +269,8 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'current_mode' not in st.session_state:
     st.session_state.current_mode = "general"
+if 'image_upload_counter' not in st.session_state:
+    st.session_state.image_upload_counter = 0
 
 def main():
     # Header
@@ -304,18 +306,29 @@ def main():
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
             
-        # Image Upload for Onboarding Mode
+        # Image Upload — available in General Chat and Onboarding modes
         uploaded_image = None
-        if st.session_state.current_mode == "onboarding":
+        if st.session_state.current_mode in ("general", "onboarding"):
             st.markdown("---")
-            st.markdown("### 📸 Class Timetable")
-            uploaded_image = st.file_uploader(
-                "Upload image of your schedule",
-                type=["jpg", "jpeg", "png"],
-                help="Upload your class timetable and I'll create a work schedule for you!"
-            )
+            if st.session_state.current_mode == "onboarding":
+                st.markdown("### 📸 Class Timetable")
+                uploaded_image = st.file_uploader(
+                    "Upload image of your schedule",
+                    type=["jpg", "jpeg", "png"],
+                    help="Upload your class timetable and I'll create a work schedule for you!",
+                    key=f"image_uploader_{st.session_state.image_upload_counter}"
+                )
+            else:
+                st.markdown("### 🖼️ Image Upload")
+                uploaded_image = st.file_uploader(
+                    "Upload an image to analyze",
+                    type=["jpg", "jpeg", "png"],
+                    help="Upload any image and ask questions about it!",
+                    key=f"image_uploader_{st.session_state.image_upload_counter}"
+                )
             if uploaded_image:
-                st.image(uploaded_image, caption="Uploaded Timetable", use_container_width=True)
+                caption = "Uploaded Timetable" if st.session_state.current_mode == "onboarding" else "Uploaded Image"
+                st.image(uploaded_image, caption=caption, use_container_width=True)
         
         st.markdown("---")
         
@@ -432,10 +445,21 @@ def main():
             img_bytes = uploaded_image.getvalue()
             
         if user_input or img_bytes:
-            with st.spinner('🤔 Thinking...'):
+            # Use a more descriptive spinner for long-running tasks
+            input_lower = (user_input or "").lower()
+            if st.session_state.current_mode == "onboarding" and any(w in input_lower for w in ["agenda", "onboarding plan", "welcome"]):
+                spinner_msg = "📝 Generating your 21-day onboarding agenda... This may take a few minutes."
+            elif img_bytes:
+                spinner_msg = "🖼️ Processing image..."
+            else:
+                spinner_msg = "🤔 Thinking..."
+            with st.spinner(spinner_msg):
                 process_user_input(user_input, img_bytes)
             # Increment counter to create a new widget with empty value
             st.session_state.message_counter += 1
+            # Clear the image uploader if an image was used
+            if img_bytes:
+                st.session_state.image_upload_counter += 1
     
     col1, col2 = st.columns([4, 1])
     
@@ -444,7 +468,7 @@ def main():
         user_input = st.text_input(
             "💭 Type your message here...",
             key=f"message_input_{st.session_state.message_counter}",
-            placeholder="Ask me to create a work schedule! You can also upload a timetable image in the sidebar." if st.session_state.current_mode == "onboarding" else "Ask me about dev setup, team processes, or anything else! (Press Enter to send)",
+            placeholder="Ask me to create a work schedule! You can also upload a timetable image in the sidebar." if st.session_state.current_mode == "onboarding" else "Ask me anything! You can also upload an image in the sidebar. (Press Enter to send)",
             label_visibility="collapsed",
             on_change=on_input_submit
         )
