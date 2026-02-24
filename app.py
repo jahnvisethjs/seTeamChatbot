@@ -357,43 +357,6 @@ def main():
                 caption = "Uploaded Timetable" if st.session_state.current_mode == "onboarding" else "Uploaded Image"
                 st.image(uploaded_image, caption=caption, use_container_width=True)
         
-        st.markdown("---")
-        
-        # Quick Actions
-        st.markdown("### ⚡ Quick Actions")
-        
-        if st.session_state.current_mode == "dev_setup":
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Reset", use_container_width=True):
-                    st.session_state.chat_history = []
-                    st.session_state.chatbot = MegaChatbot()
-                    if 'uploaded_image' in st.session_state:
-                        del st.session_state.uploaded_image
-                    st.rerun()
-            with col2:
-                if st.button("📊 Progress", use_container_width=True):
-                    progress = st.session_state.chatbot.dev_setup_assistant.get_step_progress()
-                    st.progress(progress['percentage'] / 100)
-                    st.markdown(f"**Step {progress['current_step']} of {progress['total_steps']}**")
-        else:
-            if st.button("🔄 Reset", use_container_width=True):
-                st.session_state.chat_history = []
-                st.session_state.chatbot = MegaChatbot()
-                if 'uploaded_image' in st.session_state:
-                    del st.session_state.uploaded_image
-                st.rerun()
-        
-        st.markdown("---")
-        
-        # API Status
-        st.markdown("### 🔑 API Status")
-        if ASU_AI_API_TOKEN:
-            st.markdown('<div class="status-badge status-success">✅ Connected to ASU AI</div>', unsafe_allow_html=True)
-            st.caption("GPT-4o Model Active")
-        else:
-            st.markdown('<div class="status-badge status-error">❌ API Not Configured</div>', unsafe_allow_html=True)
-            st.caption("Add token to .env file")
         
 
     
