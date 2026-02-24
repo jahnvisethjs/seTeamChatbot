@@ -40,10 +40,10 @@ class OnboardingAssistant:
             
         return """I can help you with two main onboarding tasks:
 
-**Step 1 — Generate Work Schedule:**
+**1 — Generate Work Schedule:**
 Upload an image of your class timetable (or paste it as text), and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
 
-**Step 2 — Generate Onboarding Agenda:**
+**2 — Generate Onboarding Agenda:**
 Once you have your work schedule, ask me to "generate an agenda" and I'll create a full 21-business-day onboarding plan fit to your working hours. You can also provide a work schedule directly (text or image) when requesting the agenda.
 
 What would you like to do?"""

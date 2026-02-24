@@ -57,6 +57,33 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     
+    .chat-avatar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .chat-avatar-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    
+    .user-avatar {
+        background: rgba(255,255,255,0.25);
+    }
+    
+    .assistant-avatar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
     @keyframes slideIn {
         from {
             opacity: 0;
@@ -335,20 +362,27 @@ def main():
         # Quick Actions
         st.markdown("### ⚡ Quick Actions")
         
-        col1, col2 = st.columns(2)
-        with col1:
+        if st.session_state.current_mode == "dev_setup":
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Reset", use_container_width=True):
+                    st.session_state.chat_history = []
+                    st.session_state.chatbot = MegaChatbot()
+                    if 'uploaded_image' in st.session_state:
+                        del st.session_state.uploaded_image
+                    st.rerun()
+            with col2:
+                if st.button("📊 Progress", use_container_width=True):
+                    progress = st.session_state.chatbot.dev_setup_assistant.get_step_progress()
+                    st.progress(progress['percentage'] / 100)
+                    st.markdown(f"**Step {progress['current_step']} of {progress['total_steps']}**")
+        else:
             if st.button("🔄 Reset", use_container_width=True):
                 st.session_state.chat_history = []
                 st.session_state.chatbot = MegaChatbot()
                 if 'uploaded_image' in st.session_state:
                     del st.session_state.uploaded_image
                 st.rerun()
-        
-        with col2:
-            if st.button("📊 Progress", use_container_width=True) and st.session_state.current_mode == "dev_setup":
-                progress = st.session_state.chatbot.dev_setup_assistant.get_step_progress()
-                st.progress(progress['percentage'] / 100)
-                st.markdown(f"**Step {progress['current_step']} of {progress['total_steps']}**")
         
         st.markdown("---")
         
@@ -361,25 +395,7 @@ def main():
             st.markdown('<div class="status-badge status-error">❌ API Not Configured</div>', unsafe_allow_html=True)
             st.caption("Add token to .env file")
         
-        st.markdown("---")
-        
-        # Features
-        st.markdown("### 🚀 Features")
-        
-        features = [
-            {"icon": "🔧", "title": "Dev Setup", "desc": "Guided environment setup"},
-            {"icon": "📚", "title": "RAG Support", "desc": "Smart document retrieval"},
-            {"icon": "🖼️", "title": "Vision", "desc": "Process schedule images"},
-        ]
-        
-        for feature in features:
-            st.markdown(f"""
-            <div class="feature-card">
-                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">{feature['icon']}</div>
-                <div style="font-weight: 600; color: #667eea;">{feature['title']}</div>
-                <div style="font-size: 0.85rem; color: #64748b;">{feature['desc']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+
     
     # Main content area
     # Current mode indicator
@@ -411,8 +427,11 @@ def main():
             if message["role"] == "user":
                 st.markdown(f"""
                 <div class="chat-message user-message">
-                    <strong>You:</strong><br>
-                    {message["content"]}
+                    <div class="chat-avatar">
+                        <span class="chat-avatar-icon user-avatar">👤</span>
+                        <strong>You</strong>
+                    </div>
+                    <div class="chat-body">{message["content"]}</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
@@ -424,8 +443,11 @@ def main():
                 )
                 st.markdown(f"""
                 <div class="chat-message assistant-message">
-                    <strong>Assistant:</strong><br>
-                    {html_content}
+                    <div class="chat-avatar">
+                        <span class="chat-avatar-icon assistant-avatar">🤖</span>
+                        <strong>Assistant</strong>
+                    </div>
+                    <div class="chat-body">{html_content}</div>
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -461,9 +483,9 @@ def main():
             if img_bytes:
                 st.session_state.image_upload_counter += 1
     
-    col1, col2 = st.columns([4, 1])
+    col_input, col_send, col_help = st.columns([6, 1, 1])
     
-    with col1:
+    with col_input:
         # Use text_input with counter-based key for proper clearing
         user_input = st.text_input(
             "💭 Type your message here...",
@@ -473,10 +495,11 @@ def main():
             on_change=on_input_submit
         )
     
-    with col2:
+    with col_send:
         if st.button("🚀 Send", type="primary", use_container_width=True):
             on_input_submit()
-        
+    
+    with col_help:
         if st.button("💡 Help", use_container_width=True):
             show_help()
             st.rerun()
