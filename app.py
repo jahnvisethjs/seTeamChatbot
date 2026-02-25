@@ -220,10 +220,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+@st.cache_resource
+def get_chatbot():
+    """Initialize and cache the chatbot instance to avoid reloading embeddings."""
+    return MegaChatbot()
+
 # Initialize session state
 if 'chatbot' not in st.session_state:
     with st.spinner('🚀 Initializing SE Team Chatbot...'):
-        st.session_state.chatbot = MegaChatbot()
+        st.session_state.chatbot = get_chatbot()
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'current_mode' not in st.session_state:
@@ -272,7 +277,8 @@ def main():
         with col1:
             if st.button("🔄 Reset", use_container_width=True):
                 st.session_state.chat_history = []
-                st.session_state.chatbot = MegaChatbot()
+                get_chatbot.clear()  # Clear cache
+                st.session_state.chatbot = get_chatbot()
                 st.rerun()
         
         with col2:
@@ -368,8 +374,7 @@ def main():
         """Handle input submission via Enter key or button."""
         user_input = st.session_state.get(f'message_input_{st.session_state.message_counter}', '').strip()
         if user_input:
-            with st.spinner('🤔 Thinking...'):
-                process_user_input(user_input)
+            process_user_input(user_input)
             # Increment counter to create a new widget with empty value
             st.session_state.message_counter += 1
     
@@ -406,8 +411,13 @@ def main():
 
 def process_user_input(user_input: str):
     """Process user input and update chat history."""
-    response = st.session_state.chatbot.process_message(user_input)
+    # Add user message immediately
     st.session_state.chat_history.append({"role": "user", "content": user_input})
+    
+    # Process with progress indicator
+    with st.spinner('🤔 Thinking...'):
+        response = st.session_state.chatbot.process_message(user_input)
+    
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
 def show_help():

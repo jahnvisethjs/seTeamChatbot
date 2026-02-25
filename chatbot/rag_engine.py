@@ -74,7 +74,7 @@ class ASUAILM(Runnable):
         }
         
         try:
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=30)
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
             response.raise_for_status()
             
             result = response.json()
@@ -90,6 +90,8 @@ class ASUAILM(Runnable):
             else:
                 return str(result)
                 
+        except requests.exceptions.Timeout:
+            raise Exception("Request timed out. The AI service may be slow or unavailable.")
         except requests.exceptions.HTTPError as e:
             raise Exception(f"ASU AI API error: {e.response.status_code} - {e.response.text}")
         except Exception as e:
@@ -97,22 +99,25 @@ class ASUAILM(Runnable):
 
 class RAGEngine:
     def __init__(self):
-        # Use HuggingFace embeddings (local) since ASU AI embeddings endpoint has issues
-        # Keep ASU AI for chat completions with GPT-5
-        try:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
-        except Exception as e:
-            print(f"Warning: Could not load HuggingFace embeddings: {e}")
-            print("Falling back to basic embeddings...")
-            self.embeddings = None
-            
+        # Lazy load embeddings - don't load until needed
+        self._embeddings = None
         self.vectorstore = None
         self.llm = None
         self.rag_chain = None
         self.documents = []
+    
+    @property
+    def embeddings(self):
+        """Lazy load embeddings only when needed."""
+        if self._embeddings is None:
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings
+                self._embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
+            except Exception as e:
+                self._embeddings = None
+        return self._embeddings
         
     def load_documents(self, directory_path: str) -> None:
         """Load documents from a directory."""
