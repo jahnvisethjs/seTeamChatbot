@@ -432,7 +432,6 @@ def main():
                 """, unsafe_allow_html=True)
             else:
                 # Convert markdown to HTML for proper rendering inside styled container
-                import markdown as md
                 html_content = md.markdown(
                     message["content"],
                     extensions=['tables', 'fenced_code', 'nl2br']

@@ -183,7 +183,7 @@ What would you like help with today?"""
 
 {self.dev_setup_assistant.format_current_step()}"""
         
-        elif message_stripped == "help":
+        elif message_lower == "help":
             return f"""🔧 **Dev Setup Assistant Help:**
 
 You can chat naturally with me! For example:

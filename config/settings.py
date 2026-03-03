@@ -1,11 +1,16 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env (for local development)
 load_dotenv()
 
 # ASU AI Platform Configuration
-ASU_AI_API_TOKEN = os.getenv("ASU_AI_API_TOKEN")
+# Support both Streamlit Cloud secrets and local .env file
+try:
+    import streamlit as st
+    ASU_AI_API_TOKEN = st.secrets.get("ASU_AI_API_TOKEN", os.getenv("ASU_AI_API_TOKEN"))
+except Exception:
+    ASU_AI_API_TOKEN = os.getenv("ASU_AI_API_TOKEN")
 ASU_AI_BASE_URL = "https://api-main.aiml.asu.edu"
 ASU_AI_MODEL = "gpt-4o"
 ASU_AI_EMBEDDINGS_MODEL = "text-embedding-ada-002"
