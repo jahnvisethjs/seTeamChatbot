@@ -27,10 +27,24 @@ def extract_steps_from_markdown(content: str) -> List[Dict[str, Any]]:
     steps = []
     lines = content.split('\n')
     current_step = None
+    in_code_block = False
     
     for line in lines:
+        stripped = line.strip()
+        
+        # Track code block fences
+        if stripped.startswith('```'):
+            in_code_block = not in_code_block
+            continue  # Skip the fence lines themselves
+        
+        # Inside a code block — capture as commands
+        if in_code_block and current_step:
+            if stripped:
+                current_step['commands'].append(stripped)
+            continue
+        
         # Match numbered steps (1., 2., etc.)
-        step_match = re.match(r'^(\d+)\.\s+(.+)$', line.strip())
+        step_match = re.match(r'^(\d+)\.\s+(.+)$', stripped)
         if step_match:
             if current_step:
                 steps.append(current_step)
@@ -41,15 +55,12 @@ def extract_steps_from_markdown(content: str) -> List[Dict[str, Any]]:
                 'commands': [],
                 'checks': []
             }
-        elif current_step and line.strip():
-            # Look for commands (lines starting with $ or ```
-            if line.strip().startswith('$') or line.strip().startswith('```'):
-                current_step['commands'].append(line.strip())
+        elif current_step and stripped:
             # Look for check items (lines with [ ] or [x])
-            elif re.match(r'^\s*[-*]\s*\[[ x]\]', line.strip()):
-                current_step['checks'].append(line.strip())
+            if re.match(r'^[-*]\s*\[[ x]\]', stripped):
+                current_step['checks'].append(stripped)
             else:
-                current_step['content'].append(line.strip())
+                current_step['content'].append(stripped)
     
     if current_step:
         steps.append(current_step)
@@ -64,9 +75,9 @@ def format_step_for_display(step: Dict[str, Any]) -> str:
         formatted += "\n".join(step['content']) + "\n\n"
     
     if step['commands']:
-        formatted += "**Commands to run:**\n"
-        for cmd in step['commands']:
-            formatted += f"```bash\n{cmd}\n```\n"
+        formatted += "**Commands to run:**\n```bash\n"
+        formatted += "\n".join(step['commands'])
+        formatted += "\n```\n\n"
     
     if step['checks']:
         formatted += "**Verification checks:**\n"

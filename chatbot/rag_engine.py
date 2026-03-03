@@ -200,6 +200,26 @@ Answer:"""
                 | StrOutputParser()
             )
     
+    def direct_query(self, prompt: str) -> str:
+        """Call the LLM directly without RAG retrieval. Used for intent classification and direct prompting."""
+        if not self.llm:
+            # Initialize LLM if not already done
+            if ASU_AI_API_TOKEN:
+                self.llm = ASUAILM(
+                    api_token=ASU_AI_API_TOKEN,
+                    base_url=ASU_AI_BASE_URL,
+                    model=ASU_AI_MODEL,
+                    temperature=0.7
+                )
+            else:
+                return "LLM not available. Please configure ASU_AI_API_TOKEN."
+        
+        try:
+            response = self.llm.invoke(prompt)
+            return response
+        except Exception as e:
+            return f"Error calling LLM: {str(e)}"
+    
     def query(self, question: str) -> str:
         """Query the RAG system with a question."""
         if not self.rag_chain:

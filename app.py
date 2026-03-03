@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import markdown as md
 from chatbot.core import MegaChatbot
 from config.settings import APP_TITLE, APP_DESCRIPTION, ASU_AI_API_TOKEN
 
@@ -90,6 +91,33 @@ st.markdown("""
     .assistant-message strong {
         color: #667eea;
         font-weight: 600;
+    }
+    
+    .assistant-message pre {
+        background-color: #1e293b;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        margin: 0.75rem 0;
+    }
+    
+    .assistant-message code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+    
+    .assistant-message p code {
+        background-color: #e2e8f0;
+        color: #667eea;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    
+    .assistant-message ul, .assistant-message ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
     }
     
     /* Sidebar styling */
@@ -353,12 +381,12 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # Convert markdown to avoid rendering issues
-                content = message["content"].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+                # Convert markdown to HTML so code blocks render, then embed in themed div
+                content_html = md.markdown(message["content"], extensions=['fenced_code', 'tables'])
                 st.markdown(f"""
                 <div class="chat-message assistant-message">
                     <strong>Assistant:</strong><br>
-                    {content}
+                    {content_html}
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -398,16 +426,7 @@ def main():
             show_help()
             st.rerun()
     
-    # Dev setup progress (if in dev_setup mode)
-    if st.session_state.current_mode == "dev_setup":
-        progress = st.session_state.chatbot.dev_setup_assistant.get_step_progress()
-        st.markdown("---")
-        st.markdown(f"**📈 Setup Progress: {progress['percentage']:.1f}%**")
-        st.progress(progress['percentage'] / 100)
-        
-        current_step = st.session_state.chatbot.dev_setup_assistant.get_current_step()
-        if current_step:
-            st.caption(f"Step {current_step['number']}: {current_step['title']}")
+
 
 def process_user_input(user_input: str):
     """Process user input and update chat history."""

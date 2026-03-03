@@ -2,7 +2,6 @@ import os
 from typing import List, Dict, Any, Optional
 from chatbot.rag_engine import RAGEngine
 from chatbot.dev_setup import DevSetupAssistant
-from chatbot.utils import detect_error_in_response
 from config.settings import KNOWLEDGE_BASE_DIR, ASU_AI_API_TOKEN
 
 class MegaChatbot:
@@ -11,6 +10,7 @@ class MegaChatbot:
         self.dev_setup_assistant = DevSetupAssistant()
         self.conversation_history = []
         self.current_mode = "general"  # "general", "dev_setup", "onboarding"
+        self.step_by_step_active = False  # Only True when user opts into guided steps
         self.initialize_knowledge_base()
     
     def initialize_knowledge_base(self) -> None:
@@ -77,100 +77,54 @@ class MegaChatbot:
 What would you like help with today?"""
     
     def handle_dev_setup_message(self, message: str) -> str:
-        """Handle dev setup specific messages."""
-        message_lower = message.lower()
+        """Handle dev setup specific messages using LLM-first approach."""
+        message_stripped = message.strip().lower()
         
-        # Expanded list of progression keywords
-        progression_keywords = [
-            "next", "continue", "move ahead", "proceed", "go ahead",
-            "done", "completed", "finished", "complete", "all set",
-            "ready", "got it", "working", "success", "successfully",
-            "what's next", "what next", "move on", "skip", "let's go"
-        ]
-        
-        # Check for navigation commands - NEXT
-        if any(keyword in message_lower for keyword in progression_keywords):
-            # Acknowledge completion and move forward
-            next_step = self.dev_setup_assistant.next_step()
-            if next_step:
-                return f"""✅ Great! Moving to the next step.
-
-{self.dev_setup_assistant.format_current_step()}"""
-            else:
-                return "🎉 Congratulations! You've completed the dev setup guide. Your development environment should now be ready!"
-        
-        elif "previous" in message_lower or "back" in message_lower or "go back" in message_lower:
-            prev_step = self.dev_setup_assistant.previous_step()
-            if prev_step:
-                return self.dev_setup_assistant.format_current_step()
-            else:
-                return "You're at the beginning of the setup guide."
-        
-        elif "start" in message_lower or "begin" in message_lower or "reset" in message_lower:
+        # Check if user wants to start step-by-step mode
+        if message_stripped in ("start", "reset", "begin", "step by step", "step-by-step", "guided", "guided setup"):
+            self.step_by_step_active = True
             self.dev_setup_assistant.reset_progress()
-            return f"""🚀 Starting Dev Setup Guide!
+            return f"""🚀 **Starting Step-by-Step Dev Setup Guide!**
 
 {self.dev_setup_assistant.format_current_step()}
 
-**Navigation:**
-- Say "next", "done", or "move ahead" to continue
-- Say "previous" or "back" to go back
-- Say "error" followed by your error message for help
-- Say "status" to see your progress"""
+Just chat naturally — tell me when you're done with a step, ask questions, or report any errors!"""
         
-        elif "status" in message_lower or "progress" in message_lower:
-            progress = self.dev_setup_assistant.get_step_progress()
-            return f"""📊 **Setup Progress:**
-- Current Step: {progress['current_step']} of {progress['total_steps']}
-- Progress: {progress['percentage']:.1f}%
-
-{self.dev_setup_assistant.format_current_step()}"""
-        
-        elif "error" in message_lower:
-            # Extract error message
-            error_start = message_lower.find("error")
-            error_message = message[error_start:].strip()
-            return self.dev_setup_assistant.handle_error_response(error_message)
-        
-        elif "help" in message_lower:
-            return """🔧 **Dev Setup Assistant Help:**
-
-**Navigation Commands:**
-- "next", "done", "completed", "move ahead" - Move to next step
-- "previous" or "back" - Go to previous step  
-- "start" or "reset" - Start from beginning
-- "status" - Show current progress
-
-**Error Help:**
-- "error [your error message]" - Get help with specific errors
-
-**Current Step:**
-{self.dev_setup_assistant.format_current_step()}"""
-        
-        else:
-            # Use conversational intelligence to detect intent
-            intent = self.dev_setup_assistant.detect_user_intent(message, self.conversation_history)
-            
-            if intent == "proceed":
+        # Fast-path shortcuts (only when step-by-step is active)
+        if self.step_by_step_active:
+            if message_stripped == "next":
                 next_step = self.dev_setup_assistant.next_step()
                 if next_step:
-                    return f"""✅ Great! Moving to the next step.
+                    return f"✅ Moving to the next step.\n\n{self.dev_setup_assistant.format_current_step()}"
+                else:
+                    self.step_by_step_active = False
+                    return "🎉 Congratulations! You've completed the dev setup guide. Your development environment should now be ready!"
+            
+            elif message_stripped in ("back", "previous"):
+                prev_step = self.dev_setup_assistant.previous_step()
+                if prev_step:
+                    return self.dev_setup_assistant.format_current_step()
+                else:
+                    return "You're already at the first step."
+            
+            elif message_stripped in ("status", "progress"):
+                progress = self.dev_setup_assistant.get_step_progress()
+                return f"""📊 **Setup Progress:** Step {progress['current_step']} of {progress['total_steps']} ({progress['percentage']:.0f}%)
 
 {self.dev_setup_assistant.format_current_step()}"""
-                else:
-                    return "🎉 Congratulations! You've completed the dev setup guide!"
-            elif intent == "error":
-                return self.dev_setup_assistant.handle_error_response(message)
-            else:
-                # Default helpful response
-                return f"""I'm here to help with your dev setup! 
+        
+        elif message_stripped == "help":
+            return """🔧 **Dev Setup Assistant Help:**
 
-{self.dev_setup_assistant.format_current_step()}
+You can chat naturally with me! For example:
+- Say **"step by step"** to start the guided installation walkthrough
+- Ask any question about the dev setup (e.g., "What is Colima?")
+- Describe errors you're encountering and I'll help troubleshoot
 
-**Quick Commands:**
-- Say "done" or "next" when you complete a step
-- Say "error [description]" if you encounter issues
-- Say "help" for more options"""
+**During step-by-step mode:** `next`, `back`, `status`, `start`"""
+        
+        # LLM-first: send everything through the LLM for understanding
+        return self.dev_setup_assistant.process_with_llm(message, self.conversation_history)
     
     def handle_onboarding_message(self, message: str) -> str:
         """Handle onboarding specific messages."""
@@ -192,12 +146,16 @@ For now, I can help with dev setup and general team support. Would you like to s
         """Switch to a different mode."""
         if mode in self.get_available_modes():
             self.current_mode = mode
+            self.step_by_step_active = False
             if mode == "dev_setup":
-                return f"""🔧 **Switched to Dev Setup Mode**
+                return """🔧 **Welcome to Dev Setup Mode!**
 
-{self.dev_setup_assistant.format_current_step()}
+How would you like to get started?
 
-Say "next" to continue or "help" for commands."""
+1. 📋 **Step-by-step installation** — I'll walk you through the full setup guide one step at a time. Just say **"step by step"**.
+2. ❓ **Ask a question** — If you already know what you need help with, just ask! (e.g., "How do I set up Docker?" or "I'm getting a port conflict error.")
+
+What would you like to do?"""
             elif mode == "onboarding":
                 return self.handle_onboarding_message("")
             else:
