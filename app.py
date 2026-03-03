@@ -234,6 +234,26 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
     
+    /* Text input styling - chat input box */
+    .stTextInput > div > div > input {
+        border: 2px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        background-color: #f8fafc !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+        background-color: #ffffff !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: #94a3b8 !important;
+    }
+    
     /* Progress bar */
     .stProgress > div > div {
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
