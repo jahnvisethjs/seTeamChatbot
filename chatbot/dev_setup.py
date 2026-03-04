@@ -1,4 +1,5 @@
 import os
+import platform
 from typing import List, Dict, Any, Optional
 from chatbot.utils import (
     load_markdown_file, extract_steps_from_markdown, 
@@ -14,7 +15,30 @@ class DevSetupAssistant:
         self.steps = []
         self.progress = {}
         self.rag_engine = RAGEngine()
+        self.user_os = self._detect_os()
         self.load_dev_setup_guide()
+    
+    def _detect_os(self) -> str:
+        """Detect the user's operating system."""
+        system = platform.system().lower()
+        if system == "darwin":
+            return "macOS"
+        elif system == "windows":
+            return "Windows"
+        elif system == "linux":
+            return "Linux"
+        return "Unknown"
+    
+    def set_user_os(self, os_name: str) -> None:
+        """Allow the user to override the detected OS."""
+        os_map = {
+            "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
+            "windows": "Windows", "win": "Windows", "pc": "Windows",
+            "linux": "Linux", "ubuntu": "Linux", "debian": "Linux",
+        }
+        normalized = os_name.strip().lower()
+        if normalized in os_map:
+            self.user_os = os_map[normalized]
         
     def load_dev_setup_guide(self) -> None:
         """Load the dev setup guide and extract steps."""
@@ -286,6 +310,8 @@ If the issue persists, please provide more details about the error."""
         
         prompt = f"""You are a helpful Dev Setup Assistant guiding a user through setting up their development environment.
 
+USER'S OPERATING SYSTEM: {self.user_os}
+
 CURRENT STATE:
 - Current Step: {step_context}
 - Progress: Step {progress['current_step']} of {progress['total_steps']} ({progress['percentage']:.0f}%)
@@ -306,14 +332,30 @@ USER MESSAGE: "{message}"
 
 INSTRUCTIONS:
 1. Understand what the user is saying in the context of the dev setup process.
-2. ONLY include [ACTION: NEXT] if the user EXPLICITLY says they completed the current step or want to move to the next one (e.g., "done", "I finished this step", "move on"). NEVER include it if the user is asking a question, even if they mention being done with other steps.
-3. If the user asks about a SPECIFIC step by number (e.g., "help me with step 10"), answer using the full dev setup guide above. Do NOT advance the step — just answer the question.
-4. If the user wants to go back to a previous step, include [ACTION: BACK] at the very end.
-5. If the user wants to restart, include [ACTION: RESET] at the very end.
-6. If the user is asking a question, answer it using the dev setup guide and FAQ content above. Do NOT include any [ACTION: ...] tag.
-7. If the user reports an error, provide specific troubleshooting advice from the FAQ and guide. Do NOT include any [ACTION: ...] tag.
+2. The user is on **{self.user_os}**. ALWAYS provide commands and instructions specific to their OS. If the guide has instructions for multiple operating systems, ONLY show the {self.user_os} instructions unless the user explicitly asks about another OS.
+3. For Windows users: prefer PowerShell commands over bash. If a step requires WSL, clearly indicate that the command should be run inside WSL.
+4. ONLY include [ACTION: NEXT] if the user EXPLICITLY says they completed the current step or want to move to the next one (e.g., "done", "I finished this step", "move on"). NEVER include it if the user is asking a question, even if they mention being done with other steps.
+5. If the user asks about a SPECIFIC step by number (e.g., "help me with step 10"), answer using the full dev setup guide above. Do NOT advance the step — just answer the question.
+6. If the user wants to go back to a previous step, include [ACTION: BACK] at the very end.
+7. If the user wants to restart, include [ACTION: RESET] at the very end.
+8. If the user is asking a question, answer it using the dev setup guide and FAQ content above. Do NOT include any [ACTION: ...] tag.
+9. If the user reports an error, provide specific troubleshooting advice from the FAQ and guide. Do NOT include any [ACTION: ...] tag.
 
-Respond naturally and helpfully. Be concise but informative. Use markdown formatting."""
+FORMATTING RULES (CRITICAL — follow exactly):
+- ALWAYS use fenced code blocks with a language tag for ALL commands. For example:
+  ```powershell
+  docker --version
+  ```
+  or
+  ```bash
+  docker --version
+  ```
+- NEVER output commands as plain text or with only triple quotes and no language tag.
+- Use `powershell` as the code block language for Windows commands, `bash` for macOS/Linux/WSL commands.
+- Use **bold** for emphasis where appropriate.
+- Use bullet points and numbered lists for clarity.
+
+Respond naturally and helpfully. Be concise but informative. Use proper markdown formatting."""
 
         try:
             response = self.rag_engine.direct_query(prompt)
