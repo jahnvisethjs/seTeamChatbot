@@ -137,16 +137,15 @@ What would you like help with today?"""
         """Handle dev setup specific messages."""
         message_lower = message.lower().strip()
         
-        # Check if user is specifying their OS
+        # Check if user is telling us their OS
         os_keywords = {
-            "i'm on windows": "Windows", "i use windows": "Windows", "i have windows": "Windows",
-            "i'm on mac": "macOS", "i use mac": "macOS", "i have mac": "macOS",
-            "i'm on macos": "macOS", "i use macos": "macOS", "i have a mac": "macOS",
-            "i'm on linux": "Linux", "i use linux": "Linux", "i have linux": "Linux",
-            "i'm on ubuntu": "Linux", "i use ubuntu": "Linux",
+            "windows": "Windows", "win": "Windows", "pc": "Windows",
+            "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
+            "linux": "Linux", "ubuntu": "Linux", "debian": "Linux",
         }
-        for phrase, os_name in os_keywords.items():
-            if phrase in message_lower:
+        for keyword, os_name in os_keywords.items():
+            # Match phrases like "i'm on windows", "i use mac", "I have linux", or just "windows"
+            if keyword in message_lower:
                 self.dev_setup_assistant.set_user_os(os_name)
                 break
         
@@ -241,11 +240,13 @@ You can chat naturally with me! For example:
             self.current_mode = mode
             self.step_by_step_active = False
             if mode == "dev_setup":
-                detected_os = self.dev_setup_assistant.user_os
+                os_info = ""
+                if self.dev_setup_assistant.user_os:
+                    os_info = f"\n🖥️ OS: **{self.dev_setup_assistant.user_os}**\n_(If this is wrong, just tell me your OS, e.g. \"I'm on Windows\" or \"I use macOS\")_"
+                else:
+                    os_info = "\n🖥️ **What OS are you on?** (e.g. \"I'm on Windows\", \"I use macOS\", or \"Linux\")\nThis helps me give you the right commands!"
                 return f"""🔧 **Welcome to Dev Setup Mode!**
-
-🖥️ Detected OS: **{detected_os}**
-_(If this is wrong, just tell me your OS, e.g. "I'm on Windows" or "I use macOS")_
+{os_info}
 
 How would you like to get started?
 

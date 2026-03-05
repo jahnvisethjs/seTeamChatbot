@@ -1,5 +1,4 @@
 import os
-import platform
 from typing import List, Dict, Any, Optional
 from chatbot.utils import (
     load_markdown_file, extract_steps_from_markdown, 
@@ -15,19 +14,8 @@ class DevSetupAssistant:
         self.steps = []
         self.progress = {}
         self.rag_engine = RAGEngine()
-        self.user_os = self._detect_os()
+        self.user_os = None  # Set only when the user tells us their OS
         self.load_dev_setup_guide()
-    
-    def _detect_os(self) -> str:
-        """Detect the user's operating system."""
-        system = platform.system().lower()
-        if system == "darwin":
-            return "macOS"
-        elif system == "windows":
-            return "Windows"
-        elif system == "linux":
-            return "Linux"
-        return "Unknown"
     
     def set_user_os(self, os_name: str) -> None:
         """Allow the user to override the detected OS."""
@@ -308,9 +296,18 @@ If the issue persists, please provide more details about the error."""
         if not faq_content:
             faq_content = "No FAQ available."
         
+        # Build OS-specific instructions based on whether the user has told us their OS
+        if self.user_os:
+            os_section = f"""USER'S OPERATING SYSTEM: {self.user_os}"""
+            os_instructions = f"""2. The user is on **{self.user_os}**. ALWAYS provide commands and instructions specific to their OS. If the guide has instructions for multiple operating systems, ONLY show the {self.user_os} instructions unless the user explicitly asks about another OS.
+3. For Windows users: prefer PowerShell commands over bash. If a step requires WSL, clearly indicate that the command should be run inside WSL."""
+        else:
+            os_section = "USER'S OPERATING SYSTEM: Not specified yet."
+            os_instructions = """2. The user has NOT told you their operating system yet. If the current step has OS-specific commands, show ALL OS variants (macOS, Windows, Linux) clearly labeled so the user can pick the right one. You may also gently ask them what OS they're on so you can tailor future responses."""
+
         prompt = f"""You are a helpful Dev Setup Assistant guiding a user through setting up their development environment.
 
-USER'S OPERATING SYSTEM: {self.user_os}
+{os_section}
 
 CURRENT STATE:
 - Current Step: {step_context}
@@ -332,8 +329,7 @@ USER MESSAGE: "{message}"
 
 INSTRUCTIONS:
 1. Understand what the user is saying in the context of the dev setup process.
-2. The user is on **{self.user_os}**. ALWAYS provide commands and instructions specific to their OS. If the guide has instructions for multiple operating systems, ONLY show the {self.user_os} instructions unless the user explicitly asks about another OS.
-3. For Windows users: prefer PowerShell commands over bash. If a step requires WSL, clearly indicate that the command should be run inside WSL.
+{os_instructions}
 4. ONLY include [ACTION: NEXT] if the user EXPLICITLY says they completed the current step or want to move to the next one (e.g., "done", "I finished this step", "move on"). NEVER include it if the user is asking a question, even if they mention being done with other steps.
 5. If the user asks about a SPECIFIC step by number (e.g., "help me with step 10"), answer using the full dev setup guide above. Do NOT advance the step — just answer the question.
 6. If the user wants to go back to a previous step, include [ACTION: BACK] at the very end.
