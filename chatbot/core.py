@@ -135,37 +135,66 @@ What would you like help with today?"""
     
     def handle_dev_setup_message(self, message: str) -> str:
         """Handle dev setup specific messages."""
-        message_lower = message.lower()
+        message_lower = message.lower().strip()
         
-        # Expanded list of progression keywords
-        progression_keywords = [
-            "next", "continue", "move ahead", "proceed", "go ahead",
-            "done", "completed", "finished", "complete", "all set",
-            "ready", "got it", "working", "success", "successfully",
-            "what's next", "what next", "move on", "skip", "let's go"
-        ]
+        # Check if user is telling us their OS
+        os_keywords = {
+            "windows": "Windows", "win": "Windows", "pc": "Windows",
+            "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
+            "linux": "Linux", "ubuntu": "Linux", "debian": "Linux",
+        }
+        for keyword, os_name in os_keywords.items():
+            # Match phrases like "i'm on windows", "i use mac", "I have linux", or just "windows"
+            if keyword in message_lower:
+                self.dev_setup_assistant.set_user_os(os_name)
+                break
         
-        # Check for navigation commands - NEXT
-        if any(keyword in message_lower for keyword in progression_keywords):
-            # Acknowledge completion and move forward
-            next_step = self.dev_setup_assistant.next_step()
-            if next_step:
-                return f"""✅ Great! Moving to the next step.
+        # Detect if the message is a QUESTION — if so, always send to the LLM
+        question_indicators = ["?", "how ", "what ", "why ", "where ", "when ", "which ",
+                               "can i", "can you", "could ", "should ", "is there",
+                               "tell me", "explain", "show me", "help me",
+                               "what's the", "how do", "how to", "command to",
+                               "cmd to", "way to"]
+        is_question = any(indicator in message_lower for indicator in question_indicators)
+        
+        # Count words to gauge message complexity
+        word_count = len(message_lower.split())
+        
+        # Only use keyword shortcuts for SHORT, clear-intent navigation messages
+        # Questions and longer messages always go to the LLM
+        if not is_question and word_count <= 5:
+            # Progression keywords — very short confirmations only
+            progression_keywords = [
+                "next", "continue", "move ahead", "proceed", "go ahead",
+                "done", "completed", "finished", "complete", "all set",
+                "got it", "what's next", "what next", "move on",
+                "skip", "let's go"
+            ]
+            
+            if any(keyword in message_lower for keyword in progression_keywords):
+                next_step = self.dev_setup_assistant.next_step()
+                if next_step:
+                    return f"""✅ Great! Moving to the next step.
 
 {self.dev_setup_assistant.format_current_step()}"""
-            else:
-                return "🎉 Congratulations! You've completed the dev setup guide. Your development environment should now be ready!"
-        
-        elif "previous" in message_lower or "back" in message_lower or "go back" in message_lower:
-            prev_step = self.dev_setup_assistant.previous_step()
-            if prev_step:
-                return self.dev_setup_assistant.format_current_step()
-            else:
-                return "You're at the beginning of the setup guide."
-        
-        elif "start" in message_lower or "begin" in message_lower or "reset" in message_lower:
-            self.dev_setup_assistant.reset_progress()
-            return f"""🚀 Starting Dev Setup Guide!
+                else:
+                    return "🎉 Congratulations! You've completed the dev setup guide. Your development environment should now be ready!"
+            
+            # Back/previous — only short navigation commands
+            back_keywords = ["previous", "go back", "back"]
+            if any(keyword == message_lower or message_lower == f"go {keyword}" for keyword in back_keywords):
+                prev_step = self.dev_setup_assistant.previous_step()
+                if prev_step:
+                    return self.dev_setup_assistant.format_current_step()
+                else:
+                    return "You're at the beginning of the setup guide."
+            
+            # Start/reset — only exact or near-exact matches
+            start_keywords = ["start", "begin", "reset", "start over", "step by step",
+                              "start from beginning", "restart guide"]
+            if message_lower in start_keywords:
+                self.dev_setup_assistant.reset_progress()
+                return f"""🚀 Starting Dev Setup Guide!
 
 {self.dev_setup_assistant.format_current_step()}
 
@@ -174,17 +203,18 @@ What would you like help with today?"""
 - Say "previous" or "back" to go back
 - Say "error" followed by your error message for help
 - Say "status" to see your progress"""
-        
-        elif "status" in message_lower or "progress" in message_lower:
-            progress = self.dev_setup_assistant.get_step_progress()
-            return f"""📊 **Setup Progress:**
+            
+            # Status/progress check
+            if message_lower in ["status", "progress", "where am i", "current step"]:
+                progress = self.dev_setup_assistant.get_step_progress()
+                return f"""📊 **Setup Progress:**
 - Current Step: {progress['current_step']} of {progress['total_steps']}
 - Progress: {progress['percentage']:.1f}%
 
 {self.dev_setup_assistant.format_current_step()}"""
-        
-        elif message_lower == "help":
-            return f"""🔧 **Dev Setup Assistant Help:**
+            
+            if message_lower == "help":
+                return f"""🔧 **Dev Setup Assistant Help:**
 
 You can chat naturally with me! For example:
 - Say **"step by step"** to start the guided installation walkthrough
@@ -193,7 +223,7 @@ You can chat naturally with me! For example:
 
 **During step-by-step mode:** `next`, `back`, `status`, `start`"""
         
-        # LLM-first: send everything through the LLM for understanding
+        # LLM-first: send everything else through the LLM for understanding
         return self.dev_setup_assistant.process_with_llm(message, self.conversation_history)
     
     def handle_onboarding_message(self, message: str, image_bytes: Optional[bytes] = None) -> str:
@@ -210,7 +240,13 @@ You can chat naturally with me! For example:
             self.current_mode = mode
             self.step_by_step_active = False
             if mode == "dev_setup":
-                return """🔧 **Welcome to Dev Setup Mode!**
+                os_info = ""
+                if self.dev_setup_assistant.user_os:
+                    os_info = f"\n🖥️ OS: **{self.dev_setup_assistant.user_os}**\n_(If this is wrong, just tell me your OS, e.g. \"I'm on Windows\" or \"I use macOS\")_"
+                else:
+                    os_info = "\n🖥️ **What OS are you on?** (e.g. \"I'm on Windows\", \"I use macOS\", or \"Linux\")\nThis helps me give you the right commands!"
+                return f"""🔧 **Welcome to Dev Setup Mode!**
+{os_info}
 
 How would you like to get started?
 

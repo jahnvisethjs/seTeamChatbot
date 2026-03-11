@@ -162,8 +162,8 @@ st.markdown("""
     }
     
     .assistant-message pre {
-        background-color: #1e293b;
-        color: #e2e8f0;
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
         border-radius: 8px;
         padding: 1rem;
         overflow-x: auto;
@@ -173,11 +173,28 @@ st.markdown("""
     
     .assistant-message code {
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border-radius: 6px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.88em;
     }
     
-    .assistant-message p code {
-        background-color: #e2e8f0;
-        color: #667eea;
+    .assistant-message pre code {
+        background-color: transparent !important;
+        color: inherit !important;
+        padding: 0;
+        border-radius: 0;
+        font-size: inherit;
+    }
+    
+    /* Inline code inside paragraphs and list items: light style */
+    .assistant-message p > code,
+    .assistant-message li > code,
+    .assistant-message td > code,
+    .assistant-message a > code {
+        background-color: #e2e8f0 !important;
+        color: #667eea !important;
         padding: 0.15rem 0.4rem;
         border-radius: 4px;
         font-size: 0.85em;
