@@ -17,7 +17,11 @@ class OnboardingAssistant:
         
     def process_message(self, message: str, image_bytes: Optional[bytes] = None) -> str:
         """Process a message in onboarding mode."""
-        message_lower = message.lower()
+        message_lower = message.lower().strip()
+        
+        # Empty or very short messages (e.g. mode switch) — show the onboarding menu
+        if not message_lower or len(message_lower) < 3:
+            return self._onboarding_menu()
         
         # Check for agenda request first — even if an image is attached,
         # if the user mentions "agenda", route to agenda generation (with the image)
@@ -36,15 +40,7 @@ class OnboardingAssistant:
             
         # Check for other onboarding keywords — show menu, don't auto-generate agenda
         if any(w in message_lower for w in ["onboarding", "new joiner", "welcome"]):
-            return """I can help you with two main onboarding tasks:
-
-**1 — Generate Work Schedule:**
-Upload an image of your class timetable (or paste it as text), and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
-
-**2 — Generate Onboarding Agenda:**
-Once you have your work schedule, ask me to "generate an agenda" and I'll create a full 21-business-day onboarding plan fit to your working hours. You can also provide a work schedule directly (text or image) when requesting the agenda.
-
-What would you like to do?"""
+            return self._onboarding_menu()
             
         # General message — use LLM/RAG to answer, don't just show the menu
         if self.rag_engine and self.rag_engine.rag_chain:
@@ -56,6 +52,18 @@ What would you like to do?"""
                 pass
 
         return "I'm not sure how to help with that. You're currently in **Onboarding** mode — I can help you **generate a work schedule** (upload your class timetable) or **generate an onboarding agenda**. Or switch to General Chat for other questions!"
+
+    def _onboarding_menu(self) -> str:
+        """Return the standard onboarding welcome/menu message."""
+        return """I can help you with two main onboarding tasks:
+
+**1 — Generate Work Schedule:**
+Upload an image of your class timetable (or paste it as text), and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
+
+**2 — Generate Onboarding Agenda:**
+Once you have your work schedule, ask me to "generate an agenda" and I'll create a full 21-business-day onboarding plan fit to your working hours. You can also provide a work schedule directly (text or image) when requesting the agenda.
+
+What would you like to do?"""
 
     def _extract_schedule_from_image(self, image_bytes: bytes) -> str:
         """Extract a human-readable work schedule from an uploaded image using the LLM."""
