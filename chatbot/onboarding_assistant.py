@@ -34,11 +34,9 @@ class OnboardingAssistant:
             result = self.generate_work_schedule(message, image_bytes)
             return result
             
-        # Check for other onboarding keywords
+        # Check for other onboarding keywords — show menu, don't auto-generate agenda
         if any(w in message_lower for w in ["onboarding", "new joiner", "welcome"]):
-            return self.generate_onboarding_agenda(message)
-            
-        return """I can help you with two main onboarding tasks:
+            return """I can help you with two main onboarding tasks:
 
 **1 — Generate Work Schedule:**
 Upload an image of your class timetable (or paste it as text), and I'll create a 20-hour work schedule (Tue-Fri, 9am-5pm) that fits around your classes.
@@ -47,6 +45,17 @@ Upload an image of your class timetable (or paste it as text), and I'll create a
 Once you have your work schedule, ask me to "generate an agenda" and I'll create a full 21-business-day onboarding plan fit to your working hours. You can also provide a work schedule directly (text or image) when requesting the agenda.
 
 What would you like to do?"""
+            
+        # General message — use LLM/RAG to answer, don't just show the menu
+        if self.rag_engine and self.rag_engine.rag_chain:
+            try:
+                response = self.rag_engine.query(message)
+                response += "\n\n---\n💡 *Tip: You're in **Onboarding** mode. I can also generate a **work schedule** or **onboarding agenda** — just ask!*"
+                return response
+            except Exception:
+                pass
+
+        return "I'm not sure how to help with that. You're currently in **Onboarding** mode — I can help you **generate a work schedule** (upload your class timetable) or **generate an onboarding agenda**. Or switch to General Chat for other questions!"
 
     def _extract_schedule_from_image(self, image_bytes: bytes) -> str:
         """Extract a human-readable work schedule from an uploaded image using the LLM."""
@@ -96,6 +105,20 @@ If something is unclear, make your best interpretation and note it."""
 
     def generate_onboarding_agenda(self, message: str, image_bytes: Optional[bytes] = None) -> str:
         """Generate a comprehensive 21-business-day onboarding agenda based on the user's request."""
+        # Require a schedule (from image or prior work-schedule generation) before proceeding
+        if not image_bytes and not self.last_work_schedule:
+            return """⚠️ **I need your work schedule before I can generate the onboarding agenda.**
+
+To create a personalized 21-day agenda that fits your working hours, I need one of the following:
+
+**Option 1 — Provide your class schedule first:**
+Upload an image of your class timetable (or paste it as text), and I'll generate a work schedule for you. Then we can create the agenda.
+
+**Option 2 — Provide your work schedule directly:**
+If you already have a work schedule, upload it as an image or paste it as text when you ask for the agenda.
+
+👉 **Try:** Upload your class timetable image in the sidebar, or type your class schedule (e.g., "Mon 10:00-11:30, Wed 14:00-15:30")."""
+
         # Use LLM to generate the agenda
         if not self.rag_engine.llm:
             return "I need access to the AI model to generate agendas. Please check your API token."

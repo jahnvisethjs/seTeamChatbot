@@ -549,7 +549,7 @@ def main():
 
 def process_user_input(user_input: str, image_bytes: Optional[bytes] = None):
     """Process user input and update chat history."""
-    response = st.session_state.chatbot.process_message(user_input, image_bytes=image_bytes)
+    response = st.session_state.chatbot.process_message(user_input, mode=st.session_state.current_mode, image_bytes=image_bytes)
     
     # If image was uploaded, add a note to the user message
     display_input = user_input
