@@ -282,6 +282,7 @@ You can chat naturally with me! For example:
             self.current_mode = mode
             self.step_by_step_active = False
             if mode == "dev_setup":
+                self.dev_setup_assistant.reset_progress()
                 os_info = ""
                 if self.dev_setup_assistant.user_os:
                     os_info = f"\n🖥️ OS: **{self.dev_setup_assistant.user_os}**\n_(If this is wrong, just tell me your OS, e.g. \"I'm on Windows\" or \"I use macOS\")_"
