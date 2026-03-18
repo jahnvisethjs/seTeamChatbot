@@ -5,6 +5,8 @@ from chatbot.dev_setup import DevSetupAssistant
 from chatbot.onboarding_assistant import OnboardingAssistant
 from config.settings import KNOWLEDGE_BASE_DIR, ASU_AI_API_TOKEN
 
+import time
+
 class MegaChatbot:
     def __init__(self):
         self.rag_engine = RAGEngine()
@@ -13,6 +15,7 @@ class MegaChatbot:
         self.conversation_history = []
         self.current_mode = "general"  # "general", "dev_setup", "onboarding"
         self.step_by_step_active = False  # Only True when user opts into guided steps
+        self.last_kb_update_time = time.time()
         self.initialize_knowledge_base()
     
     def initialize_knowledge_base(self) -> None:
@@ -21,18 +24,43 @@ class MegaChatbot:
         os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True)
         
         # Load documents from knowledge base
-        # Load documents from knowledge base
         self.rag_engine.load_documents(KNOWLEDGE_BASE_DIR)
-        
-        # Load onboarding agendas
-        onboarding_agendas_dir = os.path.join("data", "onboarding_agendas")
-        if os.path.exists(onboarding_agendas_dir):
-            self.rag_engine.load_documents(onboarding_agendas_dir)
             
         self.rag_engine.create_vectorstore()
+        
+    def reload_knowledge_base(self) -> None:
+        """Clear existing documents and reload them from disk to update embeddings."""
+        self.rag_engine.documents = []
+        self.initialize_knowledge_base()
+        self.last_kb_update_time = time.time()
+        
+    def check_kb_updates(self) -> None:
+        """Check if any knowledge base files have been modified and reload if necessary."""
+        import os
+        kb_dirs = [KNOWLEDGE_BASE_DIR]
+        has_updates = False
+        for d in kb_dirs:
+            if not os.path.exists(d):
+                continue
+            for root, _, files in os.walk(d):
+                for f in files:
+                    filepath = os.path.join(root, f)
+                    if os.path.getmtime(filepath) > self.last_kb_update_time:
+                        has_updates = True
+                        break
+                if has_updates:
+                    break
+            if has_updates:
+                break
+                
+        if has_updates:
+            print("Detected knowledge base file updates. Reloading embeddings...")
+            self.reload_knowledge_base()
     
     def process_message(self, message: str, mode: str = None, image_bytes: Optional[bytes] = None) -> str:
         """Process a user message and return a response."""
+        self.check_kb_updates()
+        
         if mode:
             self.current_mode = mode
         
@@ -87,6 +115,12 @@ class MegaChatbot:
 **📚 Documentation**: Access to team documents, guides, and resources
 **🖼️ Image Analysis**: Upload an image and ask me about it
 **❓ General Support**: Answer questions about team processes and tools
+
+If you can't find what you need, here are some additional resources:
+
+📂 **Shared Google Drive folder**: [SE Team Shared Drive](https://drive.google.com/drive/folders/0AP2utPxmGrEQUk9PVA)
+👥 **Ask a team member** — one of the SE student team members may be able to help.
+📩 **Reach out to CN (Christina Ngo) or JD (Julia Davis)** if you still can't find what you need.
 
 What would you like help with today?"""
     
@@ -143,11 +177,19 @@ What would you like help with today?"""
             "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
             "linux": "Linux", "ubuntu": "Linux", "debian": "Linux",
         }
+        os_changed_and_reset = False
         for keyword, os_name in os_keywords.items():
             # Match phrases like "i'm on windows", "i use mac", "I have linux", or just "windows"
             if keyword in message_lower:
-                self.dev_setup_assistant.set_user_os(os_name)
+                os_changed_and_reset = self.dev_setup_assistant.set_user_os(os_name)
                 break
+                
+        if os_changed_and_reset:
+            return f"""🔄 **OS Updated to {self.dev_setup_assistant.user_os}**
+
+Since you switched operating systems, I've reset your setup progress back to the beginning so we can make sure everything is installed correctly for {self.dev_setup_assistant.user_os}.
+
+{self.dev_setup_assistant.format_current_step()}"""
         
         # Detect if the message is a QUESTION — if so, always send to the LLM
         question_indicators = ["?", "how ", "what ", "why ", "where ", "when ", "which ",

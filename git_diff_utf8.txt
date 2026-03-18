@@ -1,0 +1,369 @@
+﻿diff --git a/app.py b/app.py
+index f58845a..da89d36 100644
+--- a/app.py
++++ b/app.py
+@@ -350,12 +350,100 @@ st.markdown("""
+     ::-webkit-scrollbar-thumb:hover {
+         background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+     }
++    
++    /* ===== Loading / Processing State ===== */
++    
++    /* Smooth overlay on stale (processing) content */
++    [data-stale="true"] {
++        opacity: 0.45 !important;
++        pointer-events: none;
++        transition: opacity 0.3s ease;
++    }
++    
++    /* Custom spinner styling ΓÇö full-screen overlay with centered ring */
++    .stSpinner {
++        position: fixed !important;
++        top: 0;
++        left: 0;
++        right: 0;
++        bottom: 0;
++        z-index: 9999;
++        display: flex !important;
++        align-items: center;
++        justify-content: center;
++        background: rgba(15, 23, 42, 0.4);
++        backdrop-filter: blur(4px);
++        -webkit-backdrop-filter: blur(4px);
++        animation: overlayFadeIn 0.25s ease-out;
++    }
++    
++    @keyframes overlayFadeIn {
++        from { opacity: 0; }
++        to   { opacity: 1; }
++    }
++    
++    /* Hide the spinner text completely */
++    .stSpinner > div {
++        background: transparent !important;
++        box-shadow: none !important;
++        font-size: 0 !important;
++        color: transparent !important;
++        padding: 0 !important;
++        display: flex;
++        align-items: center;
++        justify-content: center;
++    }
++    
++    .stSpinner > div > span,
++    .stSpinner > div > i,
++    .stSpinner > div [data-testid="stSpinnerIcon"],
++    .stSpinner > div::before {
++        display: none !important;
++    }
++    
++    /* Larger gradient spinner ring */
++    .stSpinner > div::after {
++        content: "";
++        display: block;
++        width: 48px;
++        height: 48px;
++        border: 4px solid rgba(255, 255, 255, 0.25);
++        border-top-color: #667eea;
++        border-right-color: #764ba2;
++        border-radius: 50%;
++        animation: spinRing 0.75s linear infinite;
++    }
++    
++    @keyframes spinRing {
++        to { transform: rotate(360deg); }
++    }
++    
++    /* Streamlit running indicator bar at top ΓÇö style it as a gradient progress bar */
++    [data-testid="stStatusWidget"] {
++        position: fixed !important;
++        top: 0;
++        left: 0;
++        right: 0;
++        z-index: 10000;
++    }
++    
++    [data-testid="stStatusWidget"] [role="status"] {
++        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
++        background-size: 200% 100%;
++        animation: shimmerBar 1.5s ease-in-out infinite;
++        height: 3px;
++        border-radius: 0;
++    }
++    
++    @keyframes shimmerBar {
++        0%   { background-position: 100% 0; }
++        100% { background-position: -100% 0; }
++    }
+ </style>
+ """, unsafe_allow_html=True)
+ 
+-@st.cache_resource
+ def get_chatbot():
+-    """Initialize and cache the chatbot instance to avoid reloading embeddings."""
++    """Initialize a new chatbot instance."""
+     return MegaChatbot()
+ 
+ # Initialize session state
+@@ -379,6 +467,16 @@ def main():
+         st.markdown("## ≡ƒÄ¢∩╕Å Control Panel")
+         st.markdown("---")
+         
++        # Knowledge Base Management
++        if st.button("≡ƒöä Refresh Knowledge Base", help="Reload documents and update embeddings", use_container_width=True):
++            with st.spinner("Rebuilding knowledge base..."):
++                st.session_state.chatbot.reload_knowledge_base()
++            st.success("Knowledge base refreshed!")
++            # the success message will disappear on its own, no need for time sleep and rerun since Streamlit buttons trigger rerun anyway.
++            # actually we don't need a rerun, the state is updated.
++        
++        st.markdown("---")
++
+         # Mode Selection with visual indicator
+         st.markdown("### ≡ƒöº Assistant Mode")
+         mode = st.selectbox(
+@@ -499,15 +597,7 @@ def main():
+             img_bytes = uploaded_image.getvalue()
+             
+         if user_input or img_bytes:
+-            # Use a more descriptive spinner for long-running tasks
+-            input_lower = (user_input or "").lower()
+-            if st.session_state.current_mode == "onboarding" and any(w in input_lower for w in ["agenda", "onboarding plan", "welcome"]):
+-                spinner_msg = "≡ƒô¥ Generating your 21-day onboarding agenda... This may take a few minutes."
+-            elif img_bytes:
+-                spinner_msg = "≡ƒû╝∩╕Å Processing image..."
+-            else:
+-                spinner_msg = "≡ƒñö Thinking..."
+-            with st.spinner(spinner_msg):
++            with st.spinner(""):
+                 process_user_input(user_input, img_bytes)
+             # Increment counter to create a new widget with empty value
+             st.session_state.message_counter += 1
+diff --git a/chatbot/core.py b/chatbot/core.py
+index 527369a..c43ef6a 100644
+--- a/chatbot/core.py
++++ b/chatbot/core.py
+@@ -30,6 +30,11 @@ class MegaChatbot:
+             self.rag_engine.load_documents(onboarding_agendas_dir)
+             
+         self.rag_engine.create_vectorstore()
++        
++    def reload_knowledge_base(self) -> None:
++        """Clear existing documents and reload them from disk to update embeddings."""
++        self.rag_engine.documents = []
++        self.initialize_knowledge_base()
+     
+     def process_message(self, message: str, mode: str = None, image_bytes: Optional[bytes] = None) -> str:
+         """Process a user message and return a response."""
+@@ -88,6 +93,12 @@ class MegaChatbot:
+ **≡ƒû╝∩╕Å Image Analysis**: Upload an image and ask me about it
+ **Γ¥ô General Support**: Answer questions about team processes and tools
+ 
++If you can't find what you need, here are some additional resources:
++
++≡ƒôé **Shared Google Drive folder**: [SE Team Shared Drive](https://drive.google.com/drive/folders/0AP2utPxmGrEQUk9PVA)
++≡ƒæÑ **Ask a team member** ΓÇö one of the SE student team members may be able to help.
++≡ƒô⌐ **Reach out to CN (Christina Ngo) or JD (Julia Davis)** if you still can't find what you need.
++
+ What would you like help with today?"""
+     
+     def _handle_image_query(self, message: str, image_bytes: bytes) -> str:
+diff --git a/chatbot/dev_setup.py b/chatbot/dev_setup.py
+index a64a4d7..843e90d 100644
+--- a/chatbot/dev_setup.py
++++ b/chatbot/dev_setup.py
+@@ -18,7 +18,7 @@ class DevSetupAssistant:
+         self.load_dev_setup_guide()
+     
+     def set_user_os(self, os_name: str) -> None:
+-        """Allow the user to override the detected OS."""
++        """Allow the user to override the detected OS. Resets progress if OS changes."""
+         os_map = {
+             "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
+             "windows": "Windows", "win": "Windows", "pc": "Windows",
+@@ -26,7 +26,11 @@ class DevSetupAssistant:
+         }
+         normalized = os_name.strip().lower()
+         if normalized in os_map:
+-            self.user_os = os_map[normalized]
++            new_os = os_map[normalized]
++            # If the OS is actually changing, reset to step 1
++            if self.user_os is not None and self.user_os != new_os:
++                self.reset_progress()
++            self.user_os = new_os
+         
+     def load_dev_setup_guide(self) -> None:
+         """Load the dev setup guide and extract steps."""
+diff --git a/chatbot/onboarding_assistant.py b/chatbot/onboarding_assistant.py
+index 9790140..2c47a74 100644
+--- a/chatbot/onboarding_assistant.py
++++ b/chatbot/onboarding_assistant.py
+@@ -232,19 +232,21 @@ Every working day should include these recurring elements:
+ - **Management Intern**: Emphasize community engagement data, spatial data analysis, HR/admin modules, Community Engaged Practices, ASU Briefing Materials
+ 
+ ## KEY TEAM MEMBERS (use these for the "Who" column):
+-- MS (Mani) - Manikandan Sundararaman (Supervisor)
+-- AV (Aakash) - Aakash Vashishtha (Team Lead)
+-- CN (Christina) - Christina Nawrocki (Office Director)
+-- Julia - Team member
++- JS (Jahnvi) - Jahnvi Seth 
++- ADV (Advaith) - Advaith Venkatsubramanian (Software Develpement Analyst)
++- CN (Christina) - Christina Ngo (Assistant Vice President of Social Embeddedness)
++- JD (Julia Davis) - Fellow, Principled Innovation and Social Embeddedness
+ - DP (Dragos) - IT/Dev support
+-- PM (Pavan) - Collaboratory/Proxy mentor
+-- Salvador, Kristin - Collaboratory stakeholders
++- PM (Pavan) - Community Engagement Data Input Specialist
++- KM (Kristin) - Director of Research and Development at Collaboratory
++- Salvador and Jose - Senior Developers at Collaboratory
++- Samiksha Jain (SJ) - User Experience and Communication Designer
++
+ 
+ ## LOCATIONS
+ - Fulton Center - 300 E University Dr, Tempe, AZ 85281
+ - Fulton 245 - Student workspace
+ - Fulton 2451 - Meeting room
+-- Fulton 2489 - Supervisor office
+ - CN office - Christina's office
+ 
+ ## FORMATTING RULES
+diff --git a/chatbot/rag_engine.py b/chatbot/rag_engine.py
+index 05214d4..425ff42 100644
+--- a/chatbot/rag_engine.py
++++ b/chatbot/rag_engine.py
+@@ -348,11 +348,26 @@ class RAGEngine:
+             )
+             
+             # Create RAG prompt template
+-            template = """Answer the question based only on the following context:
++            template = """You are a friendly and helpful SE Team assistant chatbot. Answer the user's message using the context provided below.
+ 
++Rules:
++1. For greetings (e.g. "hi", "hello", "hey") or casual conversation, respond warmly and naturally. Introduce yourself as the SE Team assistant and offer to help with dev setup, onboarding, documentation, or general team questions.
++2. If the context contains relevant information to answer the user's question, use it to provide a helpful, confident answer.
++3. ONLY if the user asks a specific question and the context does NOT contain enough information to answer it, provide this fallback:
++
++"I don't have enough information to answer that confidently. Here are some next steps:
++
++≡ƒôé **Check the shared Google Drive folder** for additional resources:
++[SE Team Shared Drive](https://drive.google.com/drive/folders/0AP2utPxmGrEQUk9PVA)
++
++≡ƒæÑ **Ask a team member** ΓÇö one of the SE student team members may be able to help.
++
++≡ƒô⌐ **Reach out to CN (Christina Ngo) or JD (Julia Davis)** if you still can't find what you need."
++
++Context:
+ {context}
+ 
+-Question: {question}
++User message: {question}
+ 
+ Answer:"""
+             prompt = ChatPromptTemplate.from_template(template)
+@@ -433,11 +448,26 @@ Answer:"""
+                 )
+                 
+                 # Create RAG prompt template
+-                template = """Answer the question based only on the following context:
++                template = """You are a friendly and helpful SE Team assistant chatbot. Answer the user's message using the context provided below.
++
++Rules:
++1. For greetings (e.g. "hi", "hello", "hey") or casual conversation, respond warmly and naturally. Introduce yourself as the SE Team assistant and offer to help with dev setup, onboarding, documentation, or general team questions.
++2. If the context contains relevant information to answer the user's question, use it to provide a helpful, confident answer.
++3. ONLY if the user asks a specific question and the context does NOT contain enough information to answer it, provide this fallback:
++
++"I don't have enough information to answer that confidently. Here are some next steps:
++
++≡ƒôé **Check the shared Google Drive folder** for additional resources:
++[SE Team Shared Drive](https://drive.google.com/drive/folders/0AP2utPxmGrEQUk9PVA)
++
++≡ƒæÑ **Ask a team member** ΓÇö one of the SE student team members may be able to help.
++
++≡ƒô⌐ **Reach out to CN (Christina Ngo) or JD (Julia Davis)** if you still can't find what you need."
+ 
++Context:
+ {context}
+ 
+-Question: {question}
++User message: {question}
+ 
+ Answer:"""
+                 prompt = ChatPromptTemplate.from_template(template)
+diff --git a/data/knowledge_base/team_guide.md b/data/knowledge_base/team_guide.md
+index e9ead8b..be34a71 100644
+--- a/data/knowledge_base/team_guide.md
++++ b/data/knowledge_base/team_guide.md
+@@ -24,9 +24,11 @@ To build sustainable, data-driven systems and practices that make ASUΓÇÖs commun
+ 
+ ## Team Structure & Roles
+ 
++
++
+ ### Core Roles
+ 
+-* **Executive Director (CN)**: Strategic oversight, approvals, evaluations
++* **Assistant Vice President (CN)**: Strategic oversight, approvals, evaluations
+ * **Supervisors / Leads**: Project guidance, onboarding, feedback
+ * **Student Staff**: Proxying Collaboratory entries, research, analysis, communications
+ 
+@@ -39,6 +41,20 @@ To build sustainable, data-driven systems and practices that make ASUΓÇÖs commun
+ 
+ ---
+ 
++## Team Members & Abbreviations
++
++| Abbreviation | Full Name | Title |
++|---|---|---|
++| **CN** | Christina Ngo | Assistant Vice President of Social Embeddedness |
++| **AEV** | Alexi Vogel | Management Intern ΓÇô Community Engagement Spatial Data Analyst |
++| **ADV** | Advaith Venkatsubramanian | Software Development Analyst |
++| **JS** | Jahnvi Seth | Software Development Analyst |
++| **SJ** | Samiksha Jain | User Experience & Communication Designer |
++| **PM** | Pavan Mallipudi | Community Engagement Data Input Specialist |
++| **JD** | Julia Davis | Principled Innovation and Social Embeddedness Fellow |
++
++---
++
+ ## Tools & Platforms
+ 
+ * **Collaboratory**: Activity tracking, reporting, proxying
+@@ -213,7 +229,7 @@ Examples:
+ ## Key Contacts
+ 
+ **Christina Ngo**
+-Executive Director of Social Embeddedness
++Assistant Vice President of Social Embeddedness
+ Office of University Affairs
+ [christina.ngo@asu.edu](mailto:christina.ngo@asu.edu)
+ 
+diff --git a/data/onboarding_agenda_template.md b/data/onboarding_agenda_template.md
+index 6d96d7a..c0736a5 100644
+--- a/data/onboarding_agenda_template.md
++++ b/data/onboarding_agenda_template.md
+@@ -201,13 +201,19 @@ Focus shifts to more autonomous work:
+ ---
+ 
+ ## KEY TEAM MEMBERS (use placeholders if not specified)
+-- **MS** / Mani - Manikandan Sundararaman (Supervisor)
+-- **AV** / Aakash - Aakash Vashishtha (Team Lead)
+-- **CN** / Christina - Christina Nawrocki (Office Director)
+-- **Julia** - Julia (Team member)
+-- **DP** / Dragos - Dragos (IT/Dev support)
+-- **PM** / Pavan - Pavan (Collaboratory/Proxy mentor)
+-- **Salvador, Kristin** - Collaboratory stakeholders
++| Abbreviation | Full Name | Title |
++|---|---|---|
++| **CN** | Christina Ngo | Assistant Vice President of Social Embeddedness |
++| **AEV** | Alexi Vogel | Management Intern ΓÇô Community Engagement Spatial Data Analyst |
++| **ADV** | Advaith Venkatsubramanian | Software Development Analyst |
++| **JS** | Jahnvi Seth | Software Development Analyst |
++| **SJ** | Samiksha Jain | User Experience & Communication Designer |
++| **PM** | Pavan Mallipudi | Community Engagement Data Input Specialist |
++| **JD** | Julia Davis | Principled Innovation and Social Embeddedness Fellow |
++| **KM** | Kristin Medlin | Director of Research and Development at Collaboratory |
++Salvador Spataro | Senior Developer at Collaboratory, oversees infrastructure and backend tasks primarily |
++Jose Garcia | Senior Developer at Collaboratory, oversees frontend development |
++
+ 
+ ## LOCATIONS
+ - **Fulton Center** - 300 E University Dr, Tempe, AZ 85281

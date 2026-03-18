@@ -350,12 +350,100 @@ st.markdown("""
     ::-webkit-scrollbar-thumb:hover {
         background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
     }
+    
+    /* ===== Loading / Processing State ===== */
+    
+    /* Smooth overlay on stale (processing) content */
+    [data-stale="true"] {
+        opacity: 0.45 !important;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    /* Custom spinner styling — full-screen overlay with centered ring */
+    .stSpinner {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        animation: overlayFadeIn 0.25s ease-out;
+    }
+    
+    @keyframes overlayFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    
+    /* Hide the spinner text completely */
+    .stSpinner > div {
+        background: transparent !important;
+        box-shadow: none !important;
+        font-size: 0 !important;
+        color: transparent !important;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stSpinner > div > span,
+    .stSpinner > div > i,
+    .stSpinner > div [data-testid="stSpinnerIcon"],
+    .stSpinner > div::before {
+        display: none !important;
+    }
+    
+    /* Larger gradient spinner ring */
+    .stSpinner > div::after {
+        content: "";
+        display: block;
+        width: 48px;
+        height: 48px;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #667eea;
+        border-right-color: #764ba2;
+        border-radius: 50%;
+        animation: spinRing 0.75s linear infinite;
+    }
+    
+    @keyframes spinRing {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Streamlit running indicator bar at top — style it as a gradient progress bar */
+    [data-testid="stStatusWidget"] {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+    }
+    
+    [data-testid="stStatusWidget"] [role="status"] {
+        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+        background-size: 200% 100%;
+        animation: shimmerBar 1.5s ease-in-out infinite;
+        height: 3px;
+        border-radius: 0;
+    }
+    
+    @keyframes shimmerBar {
+        0%   { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
 def get_chatbot():
-    """Initialize and cache the chatbot instance to avoid reloading embeddings."""
+    """Initialize a new chatbot instance."""
     return MegaChatbot()
 
 # Initialize session state
@@ -378,7 +466,7 @@ def main():
     with st.sidebar:
         st.markdown("## 🎛️ Control Panel")
         st.markdown("---")
-        
+
         # Mode Selection with visual indicator
         st.markdown("### 🔧 Assistant Mode")
         mode = st.selectbox(
@@ -499,15 +587,7 @@ def main():
             img_bytes = uploaded_image.getvalue()
             
         if user_input or img_bytes:
-            # Use a more descriptive spinner for long-running tasks
-            input_lower = (user_input or "").lower()
-            if st.session_state.current_mode == "onboarding" and any(w in input_lower for w in ["agenda", "onboarding plan", "welcome"]):
-                spinner_msg = "📝 Generating your 21-day onboarding agenda... This may take a few minutes."
-            elif img_bytes:
-                spinner_msg = "🖼️ Processing image..."
-            else:
-                spinner_msg = "🤔 Thinking..."
-            with st.spinner(spinner_msg):
+            with st.spinner(""):
                 process_user_input(user_input, img_bytes)
             # Increment counter to create a new widget with empty value
             st.session_state.message_counter += 1

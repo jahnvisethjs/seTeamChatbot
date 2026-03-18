@@ -175,13 +175,13 @@ Each day MUST be a markdown table with columns: **Time** | **Activity** | **Who*
 
 **Day 1 activities MUST include:**
 - Arrive at Fulton Center (with address: 300 E University Dr, Tempe, AZ 85281)
-- Intro meeting with supervisor (review agenda, confirm hiring items, discuss professional development, weekly checkouts, Workday hours)
+- Intro meeting with JS (review agenda, confirm hiring items, discuss professional development, weekly checkouts, Workday hours)
 - Complete tasks: Draft professional bio, Complete Read Me, Review onboarding schedule, Add contact info to team directory, Set up ASU email signature, Watch training videos
 - Discussion: Day 1 reflections
 - End-of-day reflection questions
 
 **Days 2-5 (Week 1) activities include:**
-- Daily check-in with supervisor (15 min)
+- Daily check-in with JS (15 min)
 - Independent Work Unstructured Time (complete checklist items)
 - Overview: Collaboratory + ASU SE interns
 - Weekly Collaboratory Standup meeting
@@ -221,7 +221,7 @@ Each day MUST be a markdown table with columns: **Time** | **Activity** | **Who*
 
 ## RECURRING DAILY ACTIVITIES
 Every working day should include these recurring elements:
-1. **Check-in with Supervisor** (15 min, start of day): Address questions, set daily priorities
+1. **Check-in with JS** (15 min, start of day): Address questions, set daily priorities
 2. **Independent Work Time** (1-2 hrs): Complete checklist items or structured project work
 3. **End-of-day reflection questions** (30 min): Fostering communication and improvement
 4. **Checkout meeting/reflections** (30 min, end of day): Share thoughts, feelings, questions
@@ -232,19 +232,21 @@ Every working day should include these recurring elements:
 - **Management Intern**: Emphasize community engagement data, spatial data analysis, HR/admin modules, Community Engaged Practices, ASU Briefing Materials
 
 ## KEY TEAM MEMBERS (use these for the "Who" column):
-- MS (Mani) - Manikandan Sundararaman (Supervisor)
-- AV (Aakash) - Aakash Vashishtha (Team Lead)
-- CN (Christina) - Christina Nawrocki (Office Director)
-- Julia - Team member
+- JS (Jahnvi) - Jahnvi Seth 
+- ADV (Advaith) - Advaith Venkatsubramanian (Software Develpement Analyst)
+- CN (Christina) - Christina Ngo (Assistant Vice President of Social Embeddedness)
+- JD (Julia Davis) - Fellow, Principled Innovation and Social Embeddedness
 - DP (Dragos) - IT/Dev support
-- PM (Pavan) - Collaboratory/Proxy mentor
-- Salvador, Kristin - Collaboratory stakeholders
+- PM (Pavan) - Community Engagement Data Input Specialist
+- KM (Kristin) - Director of Research and Development at Collaboratory
+- Salvador and Jose - Senior Developers at Collaboratory
+- Samiksha Jain (SJ) - User Experience and Communication Designer
+
 
 ## LOCATIONS
 - Fulton Center - 300 E University Dr, Tempe, AZ 85281
 - Fulton 245 - Student workspace
 - Fulton 2451 - Meeting room
-- Fulton 2489 - Supervisor office
 - CN office - Christina's office
 
 ## FORMATTING RULES

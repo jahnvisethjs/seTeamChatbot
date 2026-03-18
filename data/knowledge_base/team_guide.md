@@ -24,9 +24,11 @@ To build sustainable, data-driven systems and practices that make ASU’s commun
 
 ## Team Structure & Roles
 
+
+
 ### Core Roles
 
-* **Executive Director (CN)**: Strategic oversight, approvals, evaluations
+* **Assistant Vice President (CN)**: Strategic oversight, approvals, evaluations
 * **Supervisors / Leads**: Project guidance, onboarding, feedback
 * **Student Staff**: Proxying Collaboratory entries, research, analysis, communications
 
@@ -36,6 +38,20 @@ To build sustainable, data-driven systems and practices that make ASU’s commun
 * Conduct research and deep dives on ASU units and community partners
 * Support reporting, documentation, and storytelling
 * Follow SOPs before escalating questions
+
+---
+
+## Team Members & Abbreviations
+
+| Abbreviation | Full Name | Title |
+|---|---|---|
+| **CN** | Christina Ngo | Assistant Vice President of Social Embeddedness |
+| **AEV** | Alexi Vogel | Management Intern – Community Engagement Spatial Data Analyst |
+| **ADV** | Advaith Venkatsubramanian | Software Development Analyst |
+| **JS** | Jahnvi Seth | Software Development Analyst |
+| **SJ** | Samiksha Jain | User Experience & Communication Designer |
+| **PM** | Pavan Mallipudi | Community Engagement Data Input Specialist |
+| **JD** | Julia Davis | Principled Innovation and Social Embeddedness Fellow |
 
 ---
 
@@ -213,7 +229,7 @@ Examples:
 ## Key Contacts
 
 **Christina Ngo**
-Executive Director of Social Embeddedness
+Assistant Vice President of Social Embeddedness
 Office of University Affairs
 [christina.ngo@asu.edu](mailto:christina.ngo@asu.edu)
 

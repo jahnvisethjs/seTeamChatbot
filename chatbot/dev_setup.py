@@ -17,8 +17,8 @@ class DevSetupAssistant:
         self.user_os = None  # Set only when the user tells us their OS
         self.load_dev_setup_guide()
     
-    def set_user_os(self, os_name: str) -> None:
-        """Allow the user to override the detected OS."""
+    def set_user_os(self, os_name: str) -> bool:
+        """Allow the user to override the detected OS. Resets progress if OS changes. Returns True if reset."""
         os_map = {
             "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
             "windows": "Windows", "win": "Windows", "pc": "Windows",
@@ -26,7 +26,15 @@ class DevSetupAssistant:
         }
         normalized = os_name.strip().lower()
         if normalized in os_map:
-            self.user_os = os_map[normalized]
+            new_os = os_map[normalized]
+            reset_happened = False
+            # If the OS is changing or we're setting it for the first time while advanced in steps
+            if self.user_os != new_os and self.current_step > 0:
+                self.reset_progress()
+                reset_happened = True
+            self.user_os = new_os
+            return reset_happened
+        return False
         
     def load_dev_setup_guide(self) -> None:
         """Load the dev setup guide and extract steps."""
