@@ -277,6 +277,7 @@ class RAGEngine:
                     model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
             except Exception as e:
+                print(f"Warning: Could not load HuggingFace embeddings: {e}")
                 self._embeddings = None
         return self._embeddings
         
@@ -324,6 +325,19 @@ class RAGEngine:
     def create_vectorstore(self) -> None:
         """Create and populate the vector store."""
         if not self.documents:
+            return
+        
+        # Guard: check embeddings loaded successfully before using FAISS
+        if self.embeddings is None:
+            print("Warning: Embeddings not available — skipping vectorstore creation. RAG search will be disabled, but LLM direct queries will still work.")
+            # Still initialize the LLM so direct_query / generate_agenda / etc. work
+            if ASU_AI_API_TOKEN:
+                self.llm = ASUAILM(
+                    api_token=ASU_AI_API_TOKEN,
+                    base_url=ASU_AI_BASE_URL,
+                    model=ASU_AI_MODEL,
+                    temperature=0.7
+                )
             return
             
         # Split documents into chunks
