@@ -403,13 +403,65 @@ st.markdown("""
     ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
     ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%); }
+
+    /* ===== Loading / Processing State ===== */
+    [data-stale="true"] {
+        opacity: 0.45 !important;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .stSpinner {
+        position: fixed !important;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 9999;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        animation: overlayFadeIn 0.25s ease-out;
+    }
+    @keyframes overlayFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .stSpinner > div {
+        background: transparent !important;
+        box-shadow: none !important;
+        font-size: 0 !important;
+        color: transparent !important;
+        padding: 0 !important;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .stSpinner > div > span, .stSpinner > div > i,
+    .stSpinner > div [data-testid="stSpinnerIcon"], .stSpinner > div::before { display: none !important; }
+
+    .stSpinner > div::after {
+        content: "";
+        display: block;
+        width: 48px; height: 48px;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #667eea;
+        border-right-color: #764ba2;
+        border-radius: 50%;
+        animation: spinRing 0.75s linear infinite;
+    }
+    @keyframes spinRing { to { transform: rotate(360deg); } }
+
+    [data-testid="stStatusWidget"] { position: fixed !important; top: 0; left: 0; right: 0; z-index: 10000; }
+    [data-testid="stStatusWidget"] [role="status"] {
+        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+        background-size: 200% 100%;
+        animation: shimmerBar 1.5s ease-in-out infinite;
+        height: 3px; border-radius: 0;
+    }
+    @keyframes shimmerBar { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 </style>
 """, unsafe_allow_html=True)
-
-
 # ── Chatbot cache ─────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_chatbot():
+    """Initialize a new chatbot instance."""
     return MegaChatbot()
 
 

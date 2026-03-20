@@ -72,7 +72,7 @@ Each day should be a table with columns: **Time**, **Activity**, **Who**, **Loca
 | Time | Activity | Who | Location |
 |------|----------|-----|----------|
 | [Start time] | **Arrive at Fulton Center** - Location: 300 E University Dr, Tempe, AZ 85281. Introduce yourself at reception. | New Joiner | Fulton Center |
-| [+15 min] | **Intro meeting** - Review the onboarding agenda, confirm hiring action items. Discuss: Professional Development, Weekly checkouts, Workday hours, Biweekly agenda, Collaboratory Weekly Stand up Agenda. Purpose: Get to know each other, understand expectations, ask questions, receive initial assignments, learn time reporting, review weekly work schedule. | Supervisor, Team | Fulton 2489 |
+| [+15 min] | **Intro meeting** - Review the onboarding agenda, confirm hiring action items. Discuss: Professional Development, Weekly checkouts, Workday hours, Biweekly agenda, Collaboratory Weekly Stand up Agenda. Purpose: Get to know each other, understand expectations, ask questions, receive initial assignments, learn time reporting, review weekly work schedule. | JS, Team | Fulton 2489 |
 | [+1-1.5 hr] | **Complete tasks:** Draft a professional bio (reference existing bios), Complete your Read Me to share with the team, Review the Onboarding Schedule, Add contact info to team directory, Set up official ASU email signature, Watch training videos (How to Use Outlook Calendar, Intro to Collaboratory) | New Joiner | Student workspace |
 | [30 min before end] | **Discussion: Day 1 reflections** - Purpose: Your thoughts, feelings, and questions matter here. | Team | CN office |
 | [Last 30 min] | **Complete end-of-day reflection questions** - Purpose: Space to reflect and share thoughts, fostering ongoing communication and improvement. | New Joiner | Student workspace |
@@ -84,12 +84,12 @@ May be OFF depending on schedule, or continue with check-ins.
 **Day 3 (CN OOO day example):**
 | Time | Activity | Who | Location |
 |------|----------|-----|----------|
-| [Start] | **Check-in with supervisor** - Address immediate questions/challenges; provide clarity on daily priorities and tasks; build connection and alignment on key objectives for the day. | New Joiner, Supervisor | Student workspace |
+| [Start] | **Check-in with JS** - Address immediate questions/challenges; provide clarity on daily priorities and tasks; build connection and alignment on key objectives for the day. | New Joiner, JS | Student workspace |
 | [+15 min] | **Independent Work - Unstructured Time** - Complete the Independent work Checklist items from page 1. | New Joiner | Student workspace |
-| [+2 hrs] | **Overview: Collaboratory + ASU SE interns** - Introduction to the ASU Collaboratory SDA internship and its collaboration with Collaboratory, providing essential context for the upcoming weekly standup meeting. | Team leads + New Joiner | Fulton 2451 |
+| [+2 hrs] | **Overview: Collaboratory + ASU SE interns** - Introduction to the ASU Collaboratory SDA internship and its collaboration with Collaboratory, providing essential context for the upcoming weekly standup meeting. | ADV + New Joiner | Fulton 2451 |
 | [+1 hr] | **Weekly Collaboratory Standup meeting** - Connect with stakeholders regarding deliverables, maintain alignment on shared goals, provide quick updates on progress, surface blockers or needs, coordinate next steps. | Full team | Fulton 2451 |
 | [+30 min] | **Break** | | |
-| [+30 min] | **Debrief Collaboratory next steps w/ ASU Collaboratory interns** - Reflect on key takeaways from the previous meeting, ask questions, discuss next steps. | Team leads + New Joiner | Fulton 2451 |
+| [+30 min] | **Debrief Collaboratory next steps w/ ASU Collaboratory interns** - Reflect on key takeaways from the previous meeting, ask questions, discuss next steps. | ADV + New Joiner | Fulton 2451 |
 | [+1.5 hr] | **Set up technology** - Access ASU systems, communication platforms, and resources. Resolve technical issues early. Applications: Microsoft Outlook, Slack, Zoom, Google Workspace, Asana. Confirm laptop compatibility, get printer access. | New Joiner + Dev/IT support | Student workspace |
 | [30 min before end] | **Discussion: Day reflections** | Team | CN office |
 | [Last 30 min] | **Complete end-of-day reflection questions** | New Joiner | Student workspace |
@@ -98,18 +98,18 @@ May be OFF depending on schedule, or continue with check-ins.
 **Day 4 (example with Collaboratory intro):**
 | Time | Activity | Who | Location |
 |------|----------|-----|----------|
-| [Start] | **Check-in with supervisor** | New Joiner, Mani/Supervisor | Student workspace |
+| [Start] | **Check-in with JS** | New Joiner, JS | Student workspace |
 | [+15 min] | **Independent Work - Structured Time** - Focus on getting to know Collaboratory by viewing pre-recorded resources. Watch: How to Proxy into Collaboratory Onboarding video. | New Joiner | Student workspace |
 | [+2 hrs] | **Intro to Collaboratory and Proxying with Pavan** - Get familiar with the platform you will be working on. | Team + Pavan | Fulton 2451 |
 | [+1 hr] | **Proxy Activities given by Pavan** - Get to know and understand the proxying process and how the data on the platform should look. | New Joiner + Pavan | Fulton 2451 |
 | [30 min before end] | **Complete end-of-day reflection questions** | New Joiner | Reflection doc |
-| [Last 30 min] | **Checkout meeting/reflections of the day** | Supervisor + New Joiner | Student workspace |
+| [Last 30 min] | **Checkout meeting/reflections of the day** | JS + New Joiner | Student workspace |
 | [End] | **End of day** | | |
 
 **Day 5:**
 | Time | Activity | Who | Location |
 |------|----------|-----|----------|
-| [Start] | **Check-in with supervisor** | New Joiner, Supervisor | Student workspace |
+| [Start] | **Check-in with JS** | New Joiner, JS | Student workspace |
 | [+15 min] | **Continue Dev Setup, seek necessary clarifications** - Set up the development environment on local PCs, execute shell script commands, and download Docker volumes, images, and containers necessary for development. | New Joiner + Dev support | Student workspace |
 | [+2 hrs] | **Proxy the activities provided by Pavan; seek necessary clarifications.** | New Joiner | Student workspace |
 | [30 min before end] | **Complete end-of-day reflection questions** | New Joiner | Reflection doc |
@@ -118,7 +118,7 @@ May be OFF depending on schedule, or continue with check-ins.
 
 ### WEEK 2 STRUCTURE (Days 6-10)
 Each day typically includes:
-- **Check-in with supervisor** (15 min) - Address immediate questions/challenges, daily priorities
+- **Check-in with JS** (15 min) - Address immediate questions/challenges, daily priorities
 - **Independent Work / Unstructured Time** (1-2 hrs) - Complete checklist items, explore tools
 - **Proxy Activities based on feedback** (1.5-2 hrs) - Use Proxy AI and write improvements and general thoughts
 - **Complete end-of-day reflection questions** (30 min)
@@ -157,7 +157,7 @@ Focus shifts to more autonomous work:
 
 ## RECURRING ACTIVITIES (appear regularly throughout the 21 days)
 
-1. **Daily Check-in with Supervisor** (15 min at start of day)
+1. **Daily Check-in with JS** (15 min at start of day)
    - Purpose: Address immediate questions or challenges; provide clarity on daily priorities and tasks; build connection and alignment on key objectives for the day.
 
 2. **Independent Work - Unstructured Time** (varies)
@@ -201,17 +201,22 @@ Focus shifts to more autonomous work:
 ---
 
 ## KEY TEAM MEMBERS (use placeholders if not specified)
-- **MS** / Mani - Manikandan Sundararaman (Supervisor)
-- **AV** / Aakash - Aakash Vashishtha (Team Lead)
-- **CN** / Christina - Christina Nawrocki (Office Director)
-- **Julia** - Julia (Team member)
-- **DP** / Dragos - Dragos (IT/Dev support)
-- **PM** / Pavan - Pavan (Collaboratory/Proxy mentor)
-- **Salvador, Kristin** - Collaboratory stakeholders
+| Abbreviation | Full Name | Title |
+|---|---|---|
+| **CN** | Christina Ngo | Assistant Vice President of Social Embeddedness |
+| **AEV** | Alexi Vogel | Management Intern – Community Engagement Spatial Data Analyst |
+| **ADV** | Advaith Venkatsubramanian | Software Development Analyst |
+| **JS** | Jahnvi Seth | Software Development Analyst |
+| **SJ** | Samiksha Jain | User Experience & Communication Designer |
+| **PM** | Pavan Mallipudi | Community Engagement Data Input Specialist |
+| **JD** | Julia Davis | Principled Innovation and Social Embeddedness Fellow |
+| **KM** | Kristin Medlin | Director of Research and Development at Collaboratory |
+Salvador Spataro | Senior Developer at Collaboratory, oversees infrastructure and backend tasks primarily |
+Jose Garcia | Senior Developer at Collaboratory, oversees frontend development |
+
 
 ## LOCATIONS
 - **Fulton Center** - 300 E University Dr, Tempe, AZ 85281
 - **Fulton 245** - Student workspace
 - **Fulton 2451** - Meeting room
-- **Fulton 2489** - Supervisor office
 - **CN office** - Christina's office
