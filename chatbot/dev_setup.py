@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Any, Optional
 from chatbot.utils import (
     load_markdown_file, extract_steps_from_markdown, 
-    format_step_for_display, detect_error_in_response
+    format_step_for_display
 )
 from chatbot.rag_engine import RAGEngine
 from config.settings import DEV_SETUP_GUIDE, FAQ_FILE
@@ -14,7 +14,27 @@ class DevSetupAssistant:
         self.steps = []
         self.progress = {}
         self.rag_engine = RAGEngine()
+        self.user_os = None  # Set only when the user tells us their OS
         self.load_dev_setup_guide()
+    
+    def set_user_os(self, os_name: str) -> bool:
+        """Allow the user to override the detected OS. Resets progress if OS changes. Returns True if reset."""
+        os_map = {
+            "mac": "macOS", "macos": "macOS", "osx": "macOS", "apple": "macOS",
+            "windows": "Windows", "win": "Windows", "pc": "Windows",
+            "linux": "Linux", "ubuntu": "Linux", "debian": "Linux",
+        }
+        normalized = os_name.strip().lower()
+        if normalized in os_map:
+            new_os = os_map[normalized]
+            reset_happened = False
+            # If the OS is changing or we're setting it for the first time while advanced in steps
+            if self.user_os != new_os and self.current_step > 0:
+                self.reset_progress()
+                reset_happened = True
+            self.user_os = new_os
+            return reset_happened
+        return False
         
     def load_dev_setup_guide(self) -> None:
         """Load the dev setup guide and extract steps."""
@@ -247,6 +267,143 @@ If the issue persists, please provide more details about the error."""
         
         with open(FAQ_FILE, 'w', encoding='utf-8') as f:
             f.write(default_faq)
+    
+    def process_with_llm(self, message: str, conversation_history: list) -> str:
+        """
+        Use the LLM to understand the user's message in the context of the dev setup guide.
+        The LLM classifies intent AND generates a helpful response in one call.
+        Returns the response to show the user.
+        """
+        # Build current step context
+        current_step = self.get_current_step()
+        if current_step:
+            step_context = f"Step {current_step['number']}: {current_step['title']}"
+            step_detail = self.format_current_step()
+        else:
+            step_context = "No steps loaded"
+            step_detail = "No step information available."
+        
+        progress = self.get_step_progress()
+        
+        # Build recent conversation context (last 6 messages)
+        recent_context = ""
+        if conversation_history:
+            recent_messages = conversation_history[-6:]
+            recent_context = "\n".join([
+                f"{msg['role'].upper()}: {msg['content'][:200]}"
+                for msg in recent_messages
+            ])
+        
+        # Load the full dev setup guide for context
+        guide_content = load_markdown_file(DEV_SETUP_GUIDE)
+        if not guide_content:
+            guide_content = "No dev setup guide available."
+        
+        # Load FAQ for error context
+        faq_content = load_markdown_file(FAQ_FILE)
+        if not faq_content:
+            faq_content = "No FAQ available."
+        
+        # Build OS-specific instructions based on whether the user has told us their OS
+        if self.user_os:
+            os_section = f"""USER'S OPERATING SYSTEM: {self.user_os}"""
+            os_instructions = f"""2. The user is on **{self.user_os}**. ALWAYS provide commands and instructions specific to their OS. If the guide has instructions for multiple operating systems, ONLY show the {self.user_os} instructions unless the user explicitly asks about another OS.
+3. For Windows users: prefer PowerShell commands over bash. If a step requires WSL, clearly indicate that the command should be run inside WSL."""
+        else:
+            os_section = "USER'S OPERATING SYSTEM: Not specified yet."
+            os_instructions = """2. The user has NOT told you their operating system yet. If the current step has OS-specific commands, show ALL OS variants (macOS, Windows, Linux) clearly labeled so the user can pick the right one. You may also gently ask them what OS they're on so you can tailor future responses."""
+
+        prompt = f"""You are a helpful Dev Setup Assistant guiding a user through setting up their development environment.
+
+{os_section}
+
+CURRENT STATE:
+- Current Step: {step_context}
+- Progress: Step {progress['current_step']} of {progress['total_steps']} ({progress['percentage']:.0f}%)
+
+CURRENT STEP DETAILS:
+{step_detail}
+
+DEV SETUP GUIDE (full reference):
+{guide_content}
+
+COMMON ERRORS & SOLUTIONS:
+{faq_content}
+
+RECENT CONVERSATION:
+{recent_context}
+
+USER MESSAGE: "{message}"
+
+INSTRUCTIONS:
+1. Understand what the user is saying in the context of the dev setup process.
+{os_instructions}
+4. ONLY include [ACTION: NEXT] if the user EXPLICITLY says they completed the current step or want to move to the next one (e.g., "done", "I finished this step", "move on"). NEVER include it if the user is asking a question, even if they mention being done with other steps.
+5. If the user asks about a SPECIFIC step by number (e.g., "help me with step 10"), answer using the full dev setup guide above. Do NOT advance the step — just answer the question.
+6. If the user wants to go back to a previous step, include [ACTION: BACK] at the very end.
+7. If the user wants to restart, include [ACTION: RESET] at the very end.
+8. If the user is asking a question, answer it using the dev setup guide and FAQ content above. Do NOT include any [ACTION: ...] tag.
+9. If the user reports an error, provide specific troubleshooting advice from the FAQ and guide. Do NOT include any [ACTION: ...] tag.
+
+FORMATTING RULES (CRITICAL — follow exactly):
+- ALWAYS use fenced code blocks with a language tag for ALL commands. For example:
+  ```powershell
+  docker --version
+  ```
+  or
+  ```bash
+  docker --version
+  ```
+- NEVER output commands as plain text or with only triple quotes and no language tag.
+- Use `powershell` as the code block language for Windows commands, `bash` for macOS/Linux/WSL commands.
+- Use **bold** for emphasis where appropriate.
+- Use bullet points and numbered lists for clarity.
+
+Respond naturally and helpfully. Be concise but informative. Use proper markdown formatting."""
+
+        try:
+            response = self.rag_engine.direct_query(prompt)
+            
+            # Parse action tags from the response
+            action = None
+            if "[ACTION: NEXT]" in response:
+                action = "next"
+                response = response.replace("[ACTION: NEXT]", "").strip()
+            elif "[ACTION: BACK]" in response:
+                action = "back"
+                response = response.replace("[ACTION: BACK]", "").strip()
+            elif "[ACTION: RESET]" in response:
+                action = "reset"
+                response = response.replace("[ACTION: RESET]", "").strip()
+            
+            # Perform the navigation action
+            if action == "next":
+                next_step = self.next_step()
+                if next_step:
+                    response += f"\n\n---\n📍 **Next Step:**\n{self.format_current_step()}"
+                else:
+                    response += "\n\n🎉 **Congratulations! You've completed all steps in the dev setup guide!**"
+            elif action == "back":
+                prev_step = self.previous_step()
+                if prev_step:
+                    response += f"\n\n---\n📍 **Previous Step:**\n{self.format_current_step()}"
+                else:
+                    response += "\n\n⚠️ You're already at the first step."
+            elif action == "reset":
+                self.reset_progress()
+                response += f"\n\n---\n📍 **Starting from the beginning:**\n{self.format_current_step()}"
+            
+            return response
+            
+        except Exception as e:
+            # Fallback: return current step info with the error
+            return f"""I had trouble processing your message, but here's where you are:
+
+{self.format_current_step()}
+
+**Quick Commands:** Say "next" to advance, "back" to go back, or ask me any question about the setup process.
+
+_(Error: {str(e)})_"""
     
     def reset_progress(self) -> None:
         """Reset the progress and start from the beginning."""

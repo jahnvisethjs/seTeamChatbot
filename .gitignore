@@ -40,8 +40,8 @@ env/
 .env.local
 .env.*.local
 
-# Streamlit
-.streamlit/
+# Streamlit secrets (NEVER commit this!)
+.streamlit/secrets.toml
 
 # Test files and outputs - DO NOT PUSH
 test_*.py
@@ -54,6 +54,7 @@ test_asu_api.py
 test_integration.py
 test_full_functionality.py
 debug_embeddings.py
+stress_test_dev_setup.py
 *_test_results.txt
 *_results.txt
 api_test*.txt

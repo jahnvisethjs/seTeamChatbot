@@ -27,10 +27,42 @@ def extract_steps_from_markdown(content: str) -> List[Dict[str, Any]]:
     steps = []
     lines = content.split('\n')
     current_step = None
+    in_code_block = False
+    current_code_lang = ""
+    current_code_lines = []
     
     for line in lines:
+        stripped = line.strip()
+        
+        # Track code block fences
+        if stripped.startswith('```'):
+            if not in_code_block:
+                # Opening fence — capture language tag
+                in_code_block = True
+                current_code_lang = stripped[3:].strip() or "bash"
+                current_code_lines = []
+            else:
+                # Closing fence — save the code block
+                in_code_block = False
+                if current_step and current_code_lines:
+                    current_step['code_blocks'].append({
+                        'lang': current_code_lang,
+                        'lines': list(current_code_lines)
+                    })
+                    # Also add to commands for backward compatibility
+                    current_step['commands'].extend(current_code_lines)
+                current_code_lines = []
+                current_code_lang = ""
+            continue
+        
+        # Inside a code block — capture lines
+        if in_code_block:
+            if stripped:
+                current_code_lines.append(stripped)
+            continue
+        
         # Match numbered steps (1., 2., etc.)
-        step_match = re.match(r'^(\d+)\.\s+(.+)$', line.strip())
+        step_match = re.match(r'^(\d+)\.\s+(.+)$', stripped)
         if step_match:
             if current_step:
                 steps.append(current_step)
@@ -39,17 +71,15 @@ def extract_steps_from_markdown(content: str) -> List[Dict[str, Any]]:
                 'title': step_match.group(2),
                 'content': [],
                 'commands': [],
+                'code_blocks': [],
                 'checks': []
             }
-        elif current_step and line.strip():
-            # Look for commands (lines starting with $ or ```
-            if line.strip().startswith('$') or line.strip().startswith('```'):
-                current_step['commands'].append(line.strip())
+        elif current_step and stripped:
             # Look for check items (lines with [ ] or [x])
-            elif re.match(r'^\s*[-*]\s*\[[ x]\]', line.strip()):
-                current_step['checks'].append(line.strip())
+            if re.match(r'^[-*]\s*\[[ x]\]', stripped):
+                current_step['checks'].append(stripped)
             else:
-                current_step['content'].append(line.strip())
+                current_step['content'].append(stripped)
     
     if current_step:
         steps.append(current_step)
@@ -57,16 +87,26 @@ def extract_steps_from_markdown(content: str) -> List[Dict[str, Any]]:
     return steps
 
 def format_step_for_display(step: Dict[str, Any]) -> str:
-    """Format a step for display in the UI."""
+    """Format a step for display in the UI with proper markdown code blocks."""
     formatted = f"**Step {step['number']}: {step['title']}**\n\n"
     
     if step['content']:
         formatted += "\n".join(step['content']) + "\n\n"
     
-    if step['commands']:
+    # Use preserved code blocks with their original language tags
+    code_blocks = step.get('code_blocks', [])
+    if code_blocks:
         formatted += "**Commands to run:**\n"
-        for cmd in step['commands']:
-            formatted += f"```bash\n{cmd}\n```\n"
+        for block in code_blocks:
+            lang = block.get('lang', 'bash')
+            formatted += f"```{lang}\n"
+            formatted += "\n".join(block['lines'])
+            formatted += "\n```\n\n"
+    elif step['commands']:
+        # Fallback for steps without code_blocks (backward compatibility)
+        formatted += "**Commands to run:**\n```bash\n"
+        formatted += "\n".join(step['commands'])
+        formatted += "\n```\n\n"
     
     if step['checks']:
         formatted += "**Verification checks:**\n"

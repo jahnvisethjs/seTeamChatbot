@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+from typing import Optional
+import markdown as md
 from chatbot.core import MegaChatbot
 from config.settings import APP_TITLE, APP_DESCRIPTION, ASU_AI_API_TOKEN
 
@@ -56,6 +58,33 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     
+    .chat-avatar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .chat-avatar-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    
+    .user-avatar {
+        background: rgba(255,255,255,0.25);
+    }
+    
+    .assistant-avatar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
     @keyframes slideIn {
         from {
             opacity: 0;
@@ -84,11 +113,96 @@ st.markdown("""
         border: 1px solid #e2e8f0;
         border-left: 4px solid #667eea;
         margin-right: 20%;
+        color: #1e293b;
     }
     
     .assistant-message strong {
         color: #667eea;
         font-weight: 600;
+    }
+    
+    .assistant-message h3, .assistant-message h4 {
+        color: #334155;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .assistant-message table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0.75rem 0;
+        font-size: 0.9rem;
+    }
+    
+    .assistant-message th, .assistant-message td {
+        border: 1px solid #cbd5e1;
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+    }
+    
+    .assistant-message th {
+        background-color: #e2e8f0;
+        font-weight: 600;
+        color: #334155;
+    }
+    
+    .assistant-message tr:nth-child(even) {
+        background-color: #f1f5f9;
+    }
+    
+    .assistant-message hr {
+        border: none;
+        border-top: 1px solid #e2e8f0;
+        margin: 1rem 0;
+    }
+    
+    .assistant-message ul, .assistant-message ol {
+        padding-left: 1.5rem;
+        margin: 0.5rem 0;
+    }
+    
+    .assistant-message pre {
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        margin: 0.75rem 0;
+    }
+    
+    .assistant-message code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border-radius: 6px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.88em;
+    }
+    
+    .assistant-message pre code {
+        background-color: transparent !important;
+        color: inherit !important;
+        padding: 0;
+        border-radius: 0;
+        font-size: inherit;
+    }
+    
+    /* Inline code inside paragraphs and list items: light style */
+    .assistant-message p > code,
+    .assistant-message li > code,
+    .assistant-message td > code,
+    .assistant-message a > code {
+        background-color: #e2e8f0 !important;
+        color: #667eea !important;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    
+    .assistant-message ul, .assistant-message ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
     }
     
     /* Sidebar styling */
@@ -135,6 +249,26 @@ st.markdown("""
     .stTextArea textarea:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Text input styling - chat input box */
+    .stTextInput > div > div > input {
+        border: 2px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        background-color: #f8fafc !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+        background-color: #ffffff !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: #94a3b8 !important;
     }
     
     /* Progress bar */
@@ -216,28 +350,123 @@ st.markdown("""
     ::-webkit-scrollbar-thumb:hover {
         background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
     }
+    
+    /* ===== Loading / Processing State ===== */
+    
+    /* Smooth overlay on stale (processing) content */
+    [data-stale="true"] {
+        opacity: 0.45 !important;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    /* Custom spinner styling — full-screen overlay with centered ring */
+    .stSpinner {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        animation: overlayFadeIn 0.25s ease-out;
+    }
+    
+    @keyframes overlayFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    
+    /* Hide the spinner text completely */
+    .stSpinner > div {
+        background: transparent !important;
+        box-shadow: none !important;
+        font-size: 0 !important;
+        color: transparent !important;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stSpinner > div > span,
+    .stSpinner > div > i,
+    .stSpinner > div [data-testid="stSpinnerIcon"],
+    .stSpinner > div::before {
+        display: none !important;
+    }
+    
+    /* Larger gradient spinner ring */
+    .stSpinner > div::after {
+        content: "";
+        display: block;
+        width: 48px;
+        height: 48px;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #667eea;
+        border-right-color: #764ba2;
+        border-radius: 50%;
+        animation: spinRing 0.75s linear infinite;
+    }
+    
+    @keyframes spinRing {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Streamlit running indicator bar at top — style it as a gradient progress bar */
+    [data-testid="stStatusWidget"] {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+    }
+    
+    [data-testid="stStatusWidget"] [role="status"] {
+        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+        background-size: 200% 100%;
+        animation: shimmerBar 1.5s ease-in-out infinite;
+        height: 3px;
+        border-radius: 0;
+    }
+    
+    @keyframes shimmerBar {
+        0%   { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+    }
 </style>
 """, unsafe_allow_html=True)
+
+def get_chatbot():
+    """Initialize a new chatbot instance."""
+    return MegaChatbot()
 
 # Initialize session state
 if 'chatbot' not in st.session_state:
     with st.spinner('🚀 Initializing SE Team Chatbot...'):
-        st.session_state.chatbot = MegaChatbot()
+        st.session_state.chatbot = get_chatbot()
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'current_mode' not in st.session_state:
     st.session_state.current_mode = "general"
+if 'image_upload_counter' not in st.session_state:
+    st.session_state.image_upload_counter = 0
 
 def main():
     # Header
-    st.markdown('<h1 class="main-header">🤖 SE Team Mega Chatbot</h1>', unsafe_allow_html=True)
-    st.markdown(f'<p class="subtitle">{APP_DESCRIPTION} • Powered by ASU AI Platform GPT-5</p>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🤖 SE Team Chatbot</h1>', unsafe_allow_html=True)
+    st.markdown(f'<p class="subtitle">{APP_DESCRIPTION} • Powered by ASU AI Platform </p>', unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
         st.markdown("## 🎛️ Control Panel")
         st.markdown("---")
-        
+
         # Mode Selection with visual indicator
         st.markdown("### 🔧 Assistant Mode")
         mode = st.selectbox(
@@ -256,58 +485,38 @@ def main():
         
         if selected_mode != st.session_state.current_mode:
             st.session_state.current_mode = selected_mode
+            # Clear chat history when switching modes
+            st.session_state.chat_history = []
             response = st.session_state.chatbot.switch_mode(selected_mode)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
+            
+        # Image Upload — available in General Chat and Onboarding modes
+        uploaded_image = None
+        if st.session_state.current_mode in ("general", "onboarding"):
+            st.markdown("---")
+            if st.session_state.current_mode == "onboarding":
+                st.markdown("### 📸 Class Timetable")
+                uploaded_image = st.file_uploader(
+                    "Upload image of your schedule",
+                    type=["jpg", "jpeg", "png"],
+                    help="Upload your class timetable and I'll create a work schedule for you!",
+                    key=f"image_uploader_{st.session_state.image_upload_counter}"
+                )
+            else:
+                st.markdown("### 🖼️ Image Upload")
+                uploaded_image = st.file_uploader(
+                    "Upload an image to analyze",
+                    type=["jpg", "jpeg", "png"],
+                    help="Upload any image and ask questions about it!",
+                    key=f"image_uploader_{st.session_state.image_upload_counter}"
+                )
+            if uploaded_image:
+                caption = "Uploaded Timetable" if st.session_state.current_mode == "onboarding" else "Uploaded Image"
+                st.image(uploaded_image, caption=caption, use_container_width=True)
         
-        st.markdown("---")
         
-        # Quick Actions
-        st.markdown("### ⚡ Quick Actions")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Reset", use_container_width=True):
-                st.session_state.chat_history = []
-                st.session_state.chatbot = MegaChatbot()
-                st.rerun()
-        
-        with col2:
-            if st.button("📊 Progress", use_container_width=True) and st.session_state.current_mode == "dev_setup":
-                progress = st.session_state.chatbot.dev_setup_assistant.get_step_progress()
-                st.progress(progress['percentage'] / 100)
-                st.markdown(f"**Step {progress['current_step']} of {progress['total_steps']}**")
-        
-        st.markdown("---")
-        
-        # API Status
-        st.markdown("### 🔑 API Status")
-        if ASU_AI_API_TOKEN:
-            st.markdown('<div class="status-badge status-success">✅ Connected to ASU AI</div>', unsafe_allow_html=True)
-            st.caption("GPT-5 Model Active")
-        else:
-            st.markdown('<div class="status-badge status-error">❌ API Not Configured</div>', unsafe_allow_html=True)
-            st.caption("Add token to .env file")
-        
-        st.markdown("---")
-        
-        # Features
-        st.markdown("### 🚀 Features")
-        
-        features = [
-            {"icon": "🔧", "title": "Dev Setup", "desc": "Guided environment setup"},
-            {"icon": "📚", "title": "RAG Support", "desc": "Smart document retrieval"},
-            {"icon": "🤖", "title": "GPT-5", "desc": "Latest AI model"},
-        ]
-        
-        for feature in features:
-            st.markdown(f"""
-            <div class="feature-card">
-                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">{feature['icon']}</div>
-                <div style="font-weight: 600; color: #667eea;">{feature['title']}</div>
-                <div style="font-size: 0.85rem; color: #64748b;">{feature['desc']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+
     
     # Main content area
     # Current mode indicator
@@ -339,42 +548,70 @@ def main():
             if message["role"] == "user":
                 st.markdown(f"""
                 <div class="chat-message user-message">
-                    <strong>You:</strong><br>
-                    {message["content"]}
+                    <div class="chat-avatar">
+                        <span class="chat-avatar-icon user-avatar">👤</span>
+                        <strong>You</strong>
+                    </div>
+                    <div class="chat-body">{message["content"]}</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # Convert markdown to avoid rendering issues
-                content = message["content"].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+                # Convert markdown to HTML for proper rendering inside styled container
+                html_content = md.markdown(
+                    message["content"],
+                    extensions=['tables', 'fenced_code', 'nl2br']
+                )
                 st.markdown(f"""
                 <div class="chat-message assistant-message">
-                    <strong>Assistant:</strong><br>
-                    {content}
+                    <div class="chat-avatar">
+                        <span class="chat-avatar-icon assistant-avatar">🤖</span>
+                        <strong>Assistant</strong>
+                    </div>
+                    <div class="chat-body">{html_content}</div>
                 </div>
                 """, unsafe_allow_html=True)
     
     # Input area at the bottom
     st.markdown("---")
     
-    col1, col2 = st.columns([4, 1])
+    # Initialize message counter for clearing input
+    if 'message_counter' not in st.session_state:
+        st.session_state.message_counter = 0
     
-    with col1:
-        user_input = st.text_area(
+    # Callback function for when user submits input
+    def on_input_submit():
+        """Handle input submission via Enter key or button."""
+        user_input = st.session_state.get(f'message_input_{st.session_state.message_counter}', '').strip()
+        img_bytes = None
+        if uploaded_image:
+            img_bytes = uploaded_image.getvalue()
+            
+        if user_input or img_bytes:
+            with st.spinner(""):
+                process_user_input(user_input, img_bytes)
+            # Increment counter to create a new widget with empty value
+            st.session_state.message_counter += 1
+            # Clear the image uploader if an image was used
+            if img_bytes:
+                st.session_state.image_upload_counter += 1
+    
+    col_input, col_send, col_help = st.columns([6, 1, 1])
+    
+    with col_input:
+        # Use text_input with counter-based key for proper clearing
+        user_input = st.text_input(
             "💭 Type your message here...",
-            height=100,
-            key="user_input",
-            placeholder="Ask me about dev setup, team processes, or anything else!",
-            label_visibility="collapsed"
+            key=f"message_input_{st.session_state.message_counter}",
+            placeholder="Ask me to create a work schedule! You can also upload a timetable image in the sidebar." if st.session_state.current_mode == "onboarding" else "Ask me anything! You can also upload an image in the sidebar. (Press Enter to send)",
+            label_visibility="collapsed",
+            on_change=on_input_submit
         )
     
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
+    with col_send:
         if st.button("🚀 Send", type="primary", use_container_width=True):
-            if user_input and user_input.strip():
-                with st.spinner('🤔 Thinking...'):
-                    process_user_input(user_input.strip())
-                st.rerun()
-        
+            on_input_submit()
+    
+    with col_help:
         if st.button("💡 Help", use_container_width=True):
             show_help()
             st.rerun()
@@ -390,10 +627,18 @@ def main():
         if current_step:
             st.caption(f"Step {current_step['number']}: {current_step['title']}")
 
-def process_user_input(user_input: str):
+def process_user_input(user_input: str, image_bytes: Optional[bytes] = None):
     """Process user input and update chat history."""
-    response = st.session_state.chatbot.process_message(user_input)
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    response = st.session_state.chatbot.process_message(user_input, mode=st.session_state.current_mode, image_bytes=image_bytes)
+    
+    # If image was uploaded, add a note to the user message
+    display_input = user_input
+    if image_bytes and not user_input:
+        display_input = "[Sent an image of class timetable]"
+    elif image_bytes:
+        display_input = f"{user_input} [with attached image]"
+        
+    st.session_state.chat_history.append({"role": "user", "content": display_input})
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
 def show_help():
@@ -404,24 +649,22 @@ def show_help():
 **Available Modes:**
 1. **General Chat** - Ask questions about team processes, tools, and documentation
 2. **Dev Setup Assistant** - Step-by-step guidance for development environment setup
-3. **Onboarding Scheduler** - (Coming Soon) Help with onboarding schedules
+3. **Onboarding** - Create agendas and generate work schedules around your classes
+
+**Onboarding Features:**
+- **Agendas**: Provide name/role for a personalized agenda
+- **Work Schedules**: Upload an image of your class timetable or paste it as text
+- **Constraints**: 20 hours/week, Tue-Fri, 9am-5pm, single shift per day, 15-min commute buffer
 
 **How to Use:**
-- Type your message in the text area
-- Click Send or press Enter
 - Use the sidebar to switch modes
+- In **Onboarding Mode**, use the file uploader for images
+- Type your message and press Enter or click Send
 - In dev setup mode, use commands like "next", "previous", "status"
-
-**Features:**
-- 🤖 Powered by GPT-5 via ASU AI Platform
-- 📚 RAG-based document retrieval
-- 🔧 Step-by-step dev setup guidance
-- 📊 Progress tracking
 
 **Need Help?**
 - Type "help" in any mode for specific commands
 - Use sidebar controls for quick actions
-- Check the current status panel for progress info
     """
     
     st.session_state.chat_history.append({"role": "assistant", "content": help_text})
